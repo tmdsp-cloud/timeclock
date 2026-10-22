@@ -30,9 +30,11 @@
   button.out, .btn.out { background:var(--red); }
   button.primary { background:var(--blue); }
   button.gray { background:#e3e8ee; color:var(--text); }
+  button.danger { background:var(--red); }
   button.link { background:none; color:var(--muted); font-size:14px; font-weight:500; padding:8px; width:auto; display:inline-block; }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  input[type=text], input[type=password] { width:100%; padding:14px; font-size:17px; border:1px solid var(--line); border-radius:12px; margin:8px 0; }
+  input[type=text], input[type=password], select { width:100%; padding:14px; font-size:17px; border:1px solid var(--line); border-radius:12px; margin:8px 0; background:#fff; color:var(--text); }
+  input[readonly] { background:#f1f4f7; color:var(--muted); }
   .row { display:flex; justify-content:space-between; align-items:center; margin:8px 0; font-size:15px; }
   .top { display:flex; justify-content:space-between; align-items:flex-start; }
   .preview { width:100%; border-radius:12px; margin:10px 0; display:block; }
@@ -43,6 +45,24 @@
   .log:last-child { border:0; }
   .hidden { display:none !important; }
   input[type=file] { display:none; }
+
+  /* จัดการพนักงาน */
+  .emp { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .emp:last-child { border:0; }
+  .emp.click { cursor:pointer; }
+  .emp.dim { opacity:.6; }
+  .emp .nm { font-weight:600; font-size:16px; }
+  .badges { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .badge { font-size:12px; padding:2px 8px; border-radius:999px; background:#eef2f7; color:var(--muted); font-weight:600; white-space:nowrap; }
+  .badge.admin { background:#ede9fe; color:#5b21b6; }
+  .badge.hr { background:#dbeafe; color:#1d4ed8; }
+  .badge.off { background:#fdecec; color:#b4232a; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center; z-index:10; }
+  .sheet { background:#fff; width:100%; max-width:480px; border-radius:20px 20px 0 0; padding:18px; max-height:92vh; overflow:auto; }
+  label.chk { display:flex; align-items:center; gap:10px; margin:10px 0; font-size:16px; }
+  label.chk input { width:20px; height:20px; }
+  .actions { display:flex; gap:8px; margin-top:8px; }
+  .actions button { flex:1; padding:14px 8px; font-size:15px; }
 </style>
 </head>
 <body>
@@ -74,6 +94,7 @@
         </div>
         <button class="link" id="logoutBtn">ออกจากระบบ</button>
       </div>
+      <button id="manageBtn" class="gray hidden" style="margin-top:12px">👥 จัดการพนักงาน</button>
       <div class="row" style="margin-top:12px">
         <span>ตำแหน่งปัจจุบัน</span>
         <span id="gpsPill" class="pill wait">กำลังหาตำแหน่ง...</span>
@@ -100,13 +121,55 @@
     </div>
   </div>
 
+  <!-- จัดการพนักงาน (HR / ผู้ดูแลระบบ) -->
+  <div id="manageView" class="hidden">
+    <div class="card">
+      <div class="top">
+        <h1>จัดการพนักงาน</h1>
+        <button class="link" id="backBtn">← กลับ</button>
+      </div>
+      <input type="text" id="searchBox" placeholder="ค้นหารหัสหรือชื่อ" autocomplete="off">
+      <button id="addEmpBtn" class="primary">+ เพิ่มพนักงาน</button>
+      <div id="manageMsg"></div>
+    </div>
+    <div class="card" id="empList"></div>
+  </div>
+
   <div id="loading" class="card"><div class="muted" style="text-align:center">กำลังโหลด...</div></div>
 </div>
 
+<!-- ฟอร์มเพิ่ม/แก้ไขพนักงาน -->
+<div id="modal" class="modal hidden">
+  <div class="sheet">
+    <h1 id="mTitle">เพิ่มพนักงาน</h1>
+    <input type="text" id="mCode" placeholder="รหัสพนักงาน (A-Z 0-9 _ -)" autocapitalize="off" autocomplete="off">
+    <input type="text" id="mName" placeholder="ชื่อ-สกุล" autocomplete="off">
+    <div id="mRoleWrap">
+      <div class="muted" style="margin-top:6px">สิทธิ์การใช้งาน</div>
+      <select id="mRole">
+        <option value="employee">พนักงาน (ลงเวลา)</option>
+        <option value="hr">HR (จัดการข้อมูลพนักงาน)</option>
+        <option value="admin">ผู้ดูแลระบบ (กำหนดสิทธิ์ได้)</option>
+      </select>
+    </div>
+    <label class="chk" id="mOffWrap"><input type="checkbox" id="mOff"> ระงับการใช้งานบัญชีนี้</label>
+    <button id="mSave" class="primary">บันทึก</button>
+    <div class="actions" id="mActions">
+      <button id="mReset" class="gray">รีเซ็ต PIN</button>
+      <button id="mDelete" class="danger">ลบพนักงาน</button>
+    </div>
+    <div style="text-align:center;margin-top:6px"><button id="mCancel" class="link">ยกเลิก</button></div>
+    <div id="mMsg"></div>
+  </div>
+</div>
+
 <script>
-/* ===== ตั้งค่า: ใส่ URL Web App ของ Apps Script (ลงท้าย /exec) ===== */
+/* ===== ตั้งค่า: URL Web App ของ Apps Script (ลงท้าย /exec) ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyRsDB_c062D4bFtdCO37pFRWxn9WRUmMIf5qROMr8iZQ0yNqrGjykYdEGl8YCVbT_IIQ/exec';
 /* ================================================================ */
+
+const ROOT_CODE = 'tmdsp001';
+const ROLE_LABEL = { employee:'พนักงาน', hr:'HR', admin:'ผู้ดูแลระบบ' };
 
 const $ = id => document.getElementById(id);
 const store = {
@@ -114,7 +177,7 @@ const store = {
   set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} },
   del: k => { try { localStorage.removeItem(k); } catch (e) {} }
 };
-let state = { branch:null, nextType:'in', photo:null, busy:false, needSetPin:false, started:false };
+let state = { branch:null, nextType:'in', photo:null, busy:false, needSetPin:false, started:false, me:null, list:[] };
 
 // รหัสอุปกรณ์แบบสุ่ม เก็บไว้ในเครื่อง ใช้ตรวจย้อนหลังว่าลงเวลาจากเครื่องไหน
 let deviceId = store.get('deviceId');
@@ -133,8 +196,21 @@ async function api(payload) {
   return res.json();
 }
 
+// เรียกพร้อม token และจัดการเซสชันหมดอายุ
+async function call(payload) {
+  const r = await api({ ...payload, token: store.get('token') });
+  if (!r.ok) {
+    const e = new Error(r.error); e.code = r.code;
+    if (e.code === 'AUTH') {
+      store.del('token'); closeModal(); show('loginView'); setMsg($('loginMsg'), e.message, 'err');
+    }
+    throw e;
+  }
+  return r;
+}
+
 function show(id) {
-  ['loading','loginView','mainView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  ['loading','loginView','mainView','manageView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
 }
 function setMsg(el, text, kind) {
   el.innerHTML = '';
@@ -162,8 +238,10 @@ async function loadStatus() {
   const r = await api({ action:'status', token:store.get('token') });
   if (!r.ok) { const e = new Error(r.error); e.code = r.code; throw e; }
   state.branch = r.branch;
+  state.me = r.employee;
   $('empName').textContent = r.employee.name;
-  $('empCode2').textContent = 'รหัส ' + r.employee.code;
+  $('empCode2').textContent = 'รหัส ' + r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
+  $('manageBtn').classList.toggle('hidden', !(r.employee.role === 'hr' || r.employee.role === 'admin'));
   state.nextType = r.nextType;
   renderToday(r.today);
   updateButton();
@@ -219,7 +297,7 @@ $('empCode').addEventListener('input', () => {
 
 $('logoutBtn').onclick = () => {
   store.del('token');
-  state.photo = null;
+  state.photo = null; state.me = null;
   resetPhoto();
   setMsg($('actionMsg'), '');
   show('loginView');
@@ -361,6 +439,147 @@ async function refreshToday() {
     if (r.ok) { state.nextType = r.nextType; renderToday(r.today); updateButton(); }
   } catch (e) {}
 }
+
+/* ================= จัดการพนักงาน ================= */
+$('manageBtn').onclick = async () => {
+  show('manageView');
+  setMsg($('manageMsg'), '');
+  $('searchBox').value = '';
+  await loadEmployees();
+};
+$('backBtn').onclick = () => { closeModal(); loadStatus().catch(() => show('mainView')); };
+$('searchBox').addEventListener('input', renderList);
+$('addEmpBtn').onclick = () => openModal('create', null);
+
+async function loadEmployees() {
+  $('empList').innerHTML = '<div class="muted">กำลังโหลด...</div>';
+  try {
+    const r = await call({ action:'listEmployees' });
+    state.list = r.employees;
+    renderList();
+  } catch (e) {
+    $('empList').innerHTML = '';
+    setMsg($('manageMsg'), e.message, 'err');
+  }
+}
+
+function addBadge(parent, text, cls) {
+  const b = document.createElement('span');
+  b.className = 'badge' + (cls ? ' ' + cls : '');
+  b.textContent = text;
+  parent.appendChild(b);
+}
+
+function renderList() {
+  const q = $('searchBox').value.trim().toLowerCase();
+  const box = $('empList');
+  box.innerHTML = '';
+  const items = (state.list || []).filter(e => !q || e.code.toLowerCase().includes(q) || e.name.toLowerCase().includes(q));
+  if (!items.length) { box.innerHTML = '<div class="muted">ไม่พบพนักงาน</div>'; return; }
+  items.forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'emp ' + (e.editable ? 'click' : 'dim');
+    const left = document.createElement('div');
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = e.name || '(ไม่มีชื่อ)';
+    const cd = document.createElement('div'); cd.className = 'muted'; cd.textContent = e.code + (e.isSelf ? ' (คุณ)' : '');
+    left.append(nm, cd);
+    const right = document.createElement('div'); right.className = 'badges';
+    if (e.role !== 'employee') addBadge(right, ROLE_LABEL[e.role], e.role);
+    if (e.disabled) addBadge(right, 'ระงับ', 'off');
+    if (!e.hasPin) addBadge(right, 'ยังไม่ตั้ง PIN', '');
+    row.append(left, right);
+    if (e.editable) row.onclick = () => openModal('update', e);
+    box.appendChild(row);
+  });
+}
+
+/* ---------- ฟอร์มเพิ่ม/แก้ไข ---------- */
+let modalCtx = null;
+
+function openModal(mode, e) {
+  modalCtx = { mode, target: e };
+  const isCreate = mode === 'create';
+  const isAdmin = state.me && state.me.role === 'admin';
+  const isRootT = !isCreate && e.code.toLowerCase() === ROOT_CODE;
+  const isSelf = !isCreate && e.isSelf;
+
+  $('mTitle').textContent = isCreate ? 'เพิ่มพนักงาน' : 'แก้ไขพนักงาน';
+  $('mCode').value = isCreate ? '' : e.code;
+  $('mCode').readOnly = !isCreate;
+  $('mName').value = isCreate ? '' : e.name;
+  $('mRole').value = isCreate ? 'employee' : e.role;
+  $('mRoleWrap').classList.toggle('hidden', !(isAdmin && !isRootT && !isSelf));
+  $('mOffWrap').classList.toggle('hidden', isCreate || isRootT || isSelf);
+  $('mOff').checked = !isCreate && e.disabled;
+  $('mActions').classList.toggle('hidden', isCreate || isRootT || isSelf);
+  setMsg($('mMsg'), '');
+  $('modal').classList.remove('hidden');
+}
+
+function closeModal() { $('modal').classList.add('hidden'); modalCtx = null; }
+$('mCancel').onclick = closeModal;
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+
+function setModalBusy(b) {
+  ['mSave','mReset','mDelete','mCancel'].forEach(id => $(id).disabled = b);
+}
+
+$('mSave').onclick = async () => {
+  const ctx = modalCtx;
+  if (!ctx) return;
+  const code = $('mCode').value.trim();
+  const name = $('mName').value.trim();
+  if (!code) return setMsg($('mMsg'), 'กรุณากรอกรหัสพนักงาน', 'err');
+  if (!name) return setMsg($('mMsg'), 'กรุณากรอกชื่อ-สกุล', 'err');
+  const roleVisible = !$('mRoleWrap').classList.contains('hidden');
+
+  setModalBusy(true);
+  setMsg($('mMsg'), '');
+  try {
+    if (ctx.mode === 'create') {
+      await call({ action:'saveEmployee', mode:'create', code, name, role: roleVisible ? $('mRole').value : 'employee' });
+    } else {
+      await call({ action:'saveEmployee', mode:'update', code, name, disabled: $('mOff').checked });
+      if (roleVisible && $('mRole').value !== ctx.target.role) {
+        await call({ action:'setRole', code, role: $('mRole').value });
+      }
+    }
+    closeModal();
+    await loadEmployees();
+    setMsg($('manageMsg'), 'บันทึกแล้ว', 'good');
+  } catch (e) {
+    if ($('modal').classList.contains('hidden')) return; // เซสชันหมดอายุ
+    setMsg($('mMsg'), e.message, 'err');
+  } finally { setModalBusy(false); }
+};
+
+$('mReset').onclick = async () => {
+  const ctx = modalCtx;
+  if (!ctx || !confirm('รีเซ็ต PIN ของ ' + ctx.target.name + ' ?\nพนักงานต้องตั้ง PIN ใหม่เมื่อเข้าสู่ระบบครั้งถัดไป')) return;
+  setModalBusy(true);
+  try {
+    await call({ action:'resetPin', code: ctx.target.code });
+    closeModal();
+    await loadEmployees();
+    setMsg($('manageMsg'), 'รีเซ็ต PIN แล้ว แจ้งพนักงานให้ตั้ง PIN ใหม่ทันที', 'good');
+  } catch (e) {
+    if (!$('modal').classList.contains('hidden')) setMsg($('mMsg'), e.message, 'err');
+  } finally { setModalBusy(false); }
+};
+
+$('mDelete').onclick = async () => {
+  const ctx = modalCtx;
+  if (!ctx || !confirm('ลบพนักงาน ' + ctx.target.name + ' (' + ctx.target.code + ') ?\nประวัติการลงเวลาเดิมยังอยู่ในชีต Attendance')) return;
+  setModalBusy(true);
+  try {
+    await call({ action:'deleteEmployee', code: ctx.target.code });
+    closeModal();
+    await loadEmployees();
+    setMsg($('manageMsg'), 'ลบพนักงานแล้ว', 'good');
+  } catch (e) {
+    if (!$('modal').classList.contains('hidden')) setMsg($('mMsg'), e.message, 'err');
+  } finally { setModalBusy(false); }
+};
 
 init();
 </script>
