@@ -105,7 +105,7 @@
     </div>
 
     <div class="card">
-      <label class="btn" id="takePhotoBtn" for="photoInput">📷 ถ่ายรูปเพื่อลงเวลา</label>
+      <button type="button" id="takePhotoBtn" class="btn">📷 ถ่ายรูปเพื่อลงเวลา</button>
       <input type="file" id="photoInput" accept="image/*" capture="user">
       <div id="previewBox" class="hidden">
         <img id="previewImg" class="preview" alt="รูปที่ถ่าย">
@@ -136,6 +136,16 @@
   </div>
 
   <div id="loading" class="card"><div class="muted" style="text-align:center">กำลังโหลด...</div></div>
+</div>
+
+<!-- กล้องถ่ายรูปลงเวลา -->
+<div id="camModal" class="modal hidden">
+  <div class="sheet" style="padding:12px">
+    <video id="camVideo" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000;transform:scaleX(-1)"></video>
+    <button type="button" id="shutterBtn" style="margin-top:10px">📸 ถ่ายรูป</button>
+    <div style="text-align:center;margin-top:6px"><button type="button" id="camCancel" class="link">ยกเลิก</button></div>
+    <div id="camMsg"></div>
+  </div>
 </div>
 
 <!-- ฟอร์มเพิ่ม/แก้ไขพนักงาน -->
@@ -400,7 +410,54 @@ function compress(file, maxW, quality) {
   });
 }
 
-$('retakeBtn').onclick = resetPhoto;
+/* ---------- กล้องในหน้าเว็บ (เปิดกล้องตรง ไม่ผ่านแกลเลอรี) ---------- */
+let camStream = null;
+
+async function openCamera() {
+  setMsg($('actionMsg'), '');
+  // อุปกรณ์ที่ไม่รองรับกล้องในหน้าเว็บ ใช้ช่องเลือกไฟล์สำรอง
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('photoInput').click(); return; }
+  setMsg($('camMsg'), '');
+  $('camModal').classList.remove('hidden');
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false
+    });
+    $('camVideo').srcObject = camStream;
+    await $('camVideo').play().catch(() => {});
+  } catch (e) {
+    closeCamera();
+    setMsg($('actionMsg'),
+      (e.name === 'NotAllowedError' || e.name === 'SecurityError')
+        ? 'กรุณาอนุญาตการใช้กล้องในเบราว์เซอร์/มือถือ แล้วลองใหม่'
+        : 'เปิดกล้องไม่ได้: ' + (e.message || e.name), 'err');
+  }
+}
+
+function closeCamera() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  $('camVideo').srcObject = null;
+  $('camModal').classList.add('hidden');
+}
+
+$('takePhotoBtn').onclick = openCamera;
+$('camCancel').onclick = closeCamera;
+$('shutterBtn').onclick = () => {
+  const v = $('camVideo');
+  if (!v.videoWidth) return setMsg($('camMsg'), 'กล้องยังไม่พร้อม รอสักครู่แล้วกดใหม่', 'err');
+  const scale = Math.min(1, 640 / Math.max(v.videoWidth, v.videoHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(v.videoWidth * scale);
+  c.height = Math.round(v.videoHeight * scale);
+  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+  state.photo = c.toDataURL('image/jpeg', 0.7);
+  $('previewImg').src = state.photo;
+  $('previewBox').classList.remove('hidden');
+  $('takePhotoBtn').classList.add('hidden');
+  closeCamera();
+};
+
+$('retakeBtn').onclick = () => { resetPhoto(); openCamera(); };
 function resetPhoto() {
   state.photo = null;
   $('previewBox').classList.add('hidden');
