@@ -96,7 +96,8 @@
         </div>
         <button class="link" id="logoutBtn">ออกจากระบบ</button>
       </div>
-      <button id="manageBtn" class="gray hidden" style="margin-top:12px">👥 จัดการพนักงาน</button>
+      <button id="leaveBtn" class="gray" style="margin-top:12px">📝 ขออนุมัติลา <span id="leaveBadge" class="badge hidden"></span></button>
+      <button id="manageBtn" class="gray hidden" style="margin-top:8px">👥 จัดการพนักงาน</button>
       <div class="muted" id="schedText" style="margin-top:10px"></div>
       <div id="gpsRows">
         <div class="row" style="margin-top:12px">
@@ -124,6 +125,47 @@
       <div class="muted" style="margin-bottom:6px">บันทึกวันนี้</div>
       <div id="todayLog"><div class="muted">ยังไม่มีบันทึก</div></div>
     </div>
+  </div>
+
+  <!-- ขออนุมัติลา -->
+  <div id="leaveView" class="hidden">
+    <div class="card">
+      <div class="top">
+        <h1>ขออนุมัติลา</h1>
+        <button class="link" id="leaveBack">← กลับ</button>
+      </div>
+      <div class="muted" id="lvSup" style="margin-top:6px"></div>
+      <div id="lvBal" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="gap:8px">
+        <button id="tabNew" class="primary">ยื่นใบลา</button>
+        <button id="tabMine" class="gray">ใบลาของฉัน</button>
+        <button id="tabAppr" class="gray hidden">รออนุมัติ <span id="apprCount"></span></button>
+      </div>
+    </div>
+    <div class="card" id="paneNew">
+      <div class="muted">ประเภทการลา</div>
+      <select id="lvType">
+        <option value="vacation">ลาพักร้อน</option>
+        <option value="sick">ลาป่วย</option>
+        <option value="personal">ลากิจ</option>
+      </select>
+      <div class="muted" style="margin-top:6px">วันที่เริ่มลา</div>
+      <input type="date" id="lvStart">
+      <div class="muted">ถึงวันที่</div>
+      <input type="date" id="lvEnd">
+      <label class="chk"><input type="checkbox" id="lvHalfChk"> ลาครึ่งวัน (เลือกได้เมื่อลา 1 วัน)</label>
+      <select id="lvHalf" class="hidden">
+        <option value="am">ครึ่งวันเช้า</option>
+        <option value="pm">ครึ่งวันบ่าย</option>
+      </select>
+      <input type="text" id="lvReason" maxlength="200" placeholder="เหตุผลการลา" autocomplete="off">
+      <button id="lvSubmit" class="primary">ส่งใบลา</button>
+      <div id="lvMsg"></div>
+    </div>
+    <div class="card hidden" id="paneMine"><div id="lvMine"></div></div>
+    <div class="card hidden" id="paneAppr"><div id="lvAppr"></div></div>
   </div>
 
   <!-- จัดการพนักงาน (HR / ผู้ดูแลระบบ) -->
@@ -166,6 +208,8 @@
     <div class="muted">วันเกิด</div>
     <input type="date" id="mBirth">
     <input type="text" id="mSalary" inputmode="decimal" placeholder="เงินเดือน (บาท)" autocomplete="off">
+    <div class="muted" style="margin-top:6px">หัวหน้างาน (ผู้อนุมัติการลา)</div>
+    <select id="mSup"></select>
     <div id="mRoleWrap">
       <div class="muted" style="margin-top:6px">สิทธิ์การใช้งาน</div>
       <select id="mRole">
@@ -215,7 +259,9 @@ async function api(payload) {
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(payload)
   });
-  return res.json();
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch (e) { throw new Error('เซิร์ฟเวอร์ตอบกลับผิดรูปแบบ ตรวจสอบการ Deploy ของ Apps Script (Web app / Who has access: Anyone)'); }
 }
 
 // เรียกพร้อม token และจัดการเซสชันหมดอายุ
@@ -232,7 +278,7 @@ async function call(payload) {
 }
 
 function show(id) {
-  ['loading','loginView','mainView','manageView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  ['loading','loginView','mainView','manageView','leaveView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
 }
 function setMsg(el, text, kind) {
   el.innerHTML = '';
@@ -265,12 +311,18 @@ async function loadStatus() {
   $('empCode2').textContent = 'รหัส ' + r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
   $('manageBtn').classList.toggle('hidden', !(r.employee.role === 'hr' || r.employee.role === 'admin'));
   state.nextType = r.nextType;
+  const ap = Number(r.approvalsPending) || 0;
+  $('leaveBadge').textContent = ap + ' รออนุมัติ';
+  $('leaveBadge').classList.toggle('hidden', !ap);
   renderToday(r.today);
   updateButton();
-  applySchedule(r.schedule);
+  // ถ้าหลังบ้านยังเป็นเวอร์ชันเก่า (ไม่ส่ง schedule มา) ใช้ค่ามาตรฐานไปก่อน จะได้ยังล็อกอินและลงเวลาได้
+  const sch = r.schedule || { type: 'standard', required: true, todayWorkday: true,
+    days: ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'], upcoming: [], start: '08:00', end: '17:00' };
+  applySchedule(sch);
   show('mainView');
   if (!state.clockStarted) { state.clockStarted = true; startClock(); }
-  if (r.schedule.required && !state.gpsStarted) { state.gpsStarted = true; startGps(); }
+  if (sch.required && !state.gpsStarted) { state.gpsStarted = true; startGps(); }
 }
 
 /* ---------- ตารางงานตามตำแหน่ง ---------- */
@@ -533,6 +585,130 @@ async function refreshToday() {
 }
 
 /* ================= จัดการพนักงาน ================= */
+/* ---------- ขออนุมัติลา ---------- */
+const LV_TH = { vacation:'ลาพักร้อน', sick:'ลาป่วย', personal:'ลากิจ' };
+function thDate(s) {
+  const p = String(s || '').split('-').map(Number);
+  return p.length === 3 && p[0] ? p[2] + '/' + p[1] + '/' + (p[0] + 543) : (s || '');
+}
+function lvRange(r) {
+  const half = r.half ? ' (' + r.half + ')' : '';
+  return r.start === r.end ? thDate(r.start) + half : thDate(r.start) + ' - ' + thDate(r.end);
+}
+function lvTab(name) {
+  [['New','paneNew','tabNew'],['Mine','paneMine','tabMine'],['Appr','paneAppr','tabAppr']].forEach(a => {
+    $(a[1]).classList.toggle('hidden', a[0] !== name);
+    $(a[2]).className = a[0] === name ? 'primary' : 'gray';
+  });
+}
+$('tabNew').onclick = () => lvTab('New');
+$('tabMine').onclick = () => lvTab('Mine');
+$('tabAppr').onclick = () => lvTab('Appr');
+$('leaveBack').onclick = () => { loadStatus().catch(() => show('mainView')); };
+$('leaveBtn').onclick = async () => { show('leaveView'); lvTab('New'); setMsg($('lvMsg'), ''); await loadLeave(); };
+
+$('lvHalfChk').onchange = () => $('lvHalf').classList.toggle('hidden', !$('lvHalfChk').checked);
+$('lvStart').onchange = () => { if (!$('lvEnd').value || $('lvEnd').value < $('lvStart').value) $('lvEnd').value = $('lvStart').value; };
+
+async function loadLeave() {
+  try {
+    const r = await call({ action:'leaveOverview' });
+    state.leave = r;
+    $('lvSup').textContent = r.supervisor ? 'ผู้อนุมัติ: ' + r.supervisor.name + ' (' + r.supervisor.code + ')'
+      : '⚠ ยังไม่ได้ระบุหัวหน้างาน กรุณาติดต่อ HR';
+    renderBalances(r);
+    renderMine(r.mine);
+    $('tabAppr').classList.toggle('hidden', !r.canApprove);
+    $('apprCount').textContent = r.approvals.length ? '(' + r.approvals.length + ')' : '';
+    renderApprovals(r.approvals);
+  } catch (e) {
+    if (e.code === 'AUTH') return;
+    setMsg($('lvMsg'), e.message + ' (หากเพิ่งอัปเดต ตรวจว่า Deploy Apps Script เวอร์ชันใหม่แล้ว)', 'err');
+  }
+}
+
+function renderBalances(r) {
+  const box = $('lvBal');
+  box.innerHTML = '';
+  const h = document.createElement('div'); h.className = 'muted'; h.textContent = 'สิทธิ์การลาปี ' + (r.year + 543) + ' (คงเหลือ / สิทธิ์)';
+  box.appendChild(h);
+  ['vacation','sick','personal'].forEach(k => {
+    const b = r.balances[k];
+    const row = document.createElement('div'); row.className = 'row';
+    const a = document.createElement('span'); a.textContent = b.label;
+    const c = document.createElement('span');
+    let t = b.remaining + ' / ' + b.entitled + ' วัน';
+    if (b.pending) t += ' (รออนุมัติ ' + b.pending + ')';
+    if (k === 'vacation' && !b.eligible) t = b.eligibleFrom ? 'ใช้สิทธิ์ได้ตั้งแต่ ' + thDate(b.eligibleFrom) : 'ยังไม่มีวันเริ่มงาน';
+    c.textContent = t;
+    row.append(a, c); box.appendChild(row);
+  });
+}
+
+function renderMine(list) {
+  const box = $('lvMine');
+  box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="muted">ยังไม่มีใบลา</div>'; return; }
+  list.forEach(r => {
+    const d = document.createElement('div'); d.className = 'emp';
+    const left = document.createElement('div');
+    const n = document.createElement('div'); n.className = 'nm'; n.textContent = r.typeLabel + ' ' + r.days + ' วัน';
+    const m = document.createElement('div'); m.className = 'muted'; m.textContent = lvRange(r) + ' · ' + r.reason;
+    left.append(n, m);
+    if (r.note) { const o = document.createElement('div'); o.className = 'muted'; o.textContent = 'หมายเหตุ: ' + r.note; left.appendChild(o); }
+    const right = document.createElement('div'); right.className = 'badges';
+    addBadge(right, r.statusLabel, r.status === 'approved' ? 'hr' : (r.status === 'rejected' ? 'off' : ''));
+    if (r.status === 'pending') {
+      const x = document.createElement('button'); x.className = 'link'; x.textContent = 'ยกเลิก';
+      x.onclick = async () => {
+        if (!confirm('ยกเลิกใบลานี้?')) return;
+        try { await call({ action:'leaveCancel', id:r.id }); await loadLeave(); } catch (e) { setMsg($('lvMsg'), e.message, 'err'); }
+      };
+      right.appendChild(x);
+    }
+    d.append(left, right); box.appendChild(d);
+  });
+}
+
+function renderApprovals(list) {
+  const box = $('lvAppr');
+  box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="muted">ไม่มีใบลารออนุมัติ</div>'; return; }
+  list.forEach(r => {
+    const d = document.createElement('div'); d.style.cssText = 'padding:10px 0;border-bottom:1px solid #e5e7eb';
+    const n = document.createElement('div'); n.className = 'nm'; n.textContent = r.name + ' (' + r.code + ')';
+    const m = document.createElement('div'); m.textContent = r.typeLabel + ' ' + r.days + ' วัน · ' + lvRange(r);
+    const rs = document.createElement('div'); rs.className = 'muted'; rs.textContent = 'เหตุผล: ' + r.reason;
+    const note = document.createElement('input'); note.type = 'text'; note.maxLength = 200; note.placeholder = 'หมายเหตุ (จำเป็นเมื่อไม่อนุมัติ)';
+    const ok = document.createElement('button'); ok.className = 'primary'; ok.textContent = '✔ อนุมัติ';
+    const no = document.createElement('button'); no.className = 'danger'; no.style.marginTop = '8px'; no.textContent = '✖ ไม่อนุมัติ';
+    const act = async dec => {
+      ok.disabled = no.disabled = true;
+      try { await call({ action:'leaveDecide', id:r.id, decision:dec, note:note.value.trim() }); await loadLeave(); }
+      catch (e) { setMsg($('lvMsg'), e.message, 'err'); ok.disabled = no.disabled = false; }
+    };
+    ok.onclick = () => act('approve'); no.onclick = () => act('reject');
+    d.append(n, m, rs, note, ok, no); box.appendChild(d);
+  });
+}
+
+$('lvSubmit').onclick = async () => {
+  const half = $('lvHalfChk').checked ? $('lvHalf').value : '';
+  const body = { action:'leaveSubmit', type:$('lvType').value, startDate:$('lvStart').value, endDate:$('lvEnd').value,
+    half, reason:$('lvReason').value.trim() };
+  if (!body.startDate || !body.endDate) return setMsg($('lvMsg'), 'กรุณาเลือกวันที่ลา', 'err');
+  if (!body.reason) return setMsg($('lvMsg'), 'กรุณากรอกเหตุผลการลา', 'err');
+  $('lvSubmit').disabled = true;
+  setMsg($('lvMsg'), '');
+  try {
+    const r = await call(body);
+    setMsg($('lvMsg'), 'ส่งใบลาแล้ว (' + r.days + ' วัน) รอหัวหน้างานอนุมัติ', 'good');
+    $('lvReason').value = ''; $('lvHalfChk').checked = false; $('lvHalf').classList.add('hidden');
+    await loadLeave();
+  } catch (e) { setMsg($('lvMsg'), e.message, 'err'); }
+  finally { $('lvSubmit').disabled = false; }
+};
+
 $('manageBtn').onclick = async () => {
   show('manageView');
   setMsg($('manageMsg'), '');
@@ -601,6 +777,18 @@ function fillPositions(cur) {
 }
 
 
+function fillSupervisors(cur, selfCode) {
+  const sel = $('mSup');
+  sel.innerHTML = '';
+  const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+  add('', '— ไม่ระบุ —');
+  (state.list || []).filter(x => !x.disabled && x.code.toLowerCase() !== String(selfCode).toLowerCase())
+    .forEach(x => add(x.code, x.name + ' (' + x.code + ')'));
+  if (cur && !Array.prototype.some.call(sel.options, o => o.value.toLowerCase() === cur.toLowerCase())) add(cur, cur + ' (ค่าเดิม)');
+  const m = Array.prototype.filter.call(sel.options, o => o.value.toLowerCase() === String(cur).toLowerCase())[0];
+  sel.value = m ? m.value : '';
+}
+
 function openModal(mode, e) {
   modalCtx = { mode, target: e };
   const isCreate = mode === 'create';
@@ -612,7 +800,9 @@ function openModal(mode, e) {
   $('mCode').value = isCreate ? '' : e.code;
   $('mCode').readOnly = !isCreate;
   $('mName').value = isCreate ? '' : e.name;
-  fillPositions(isCreate ? '' : (e.position || ''));  $('mStart').value = isCreate ? '' : dateVal(e.startDate);
+  fillPositions(isCreate ? '' : (e.position || ''));
+  fillSupervisors(isCreate ? '' : (e.supervisor || ''), isCreate ? '' : e.code);
+  $('mStart').value = isCreate ? '' : dateVal(e.startDate);
   $('mBirth').value = isCreate ? '' : dateVal(e.birthDate);
   $('mSalary').value = isCreate ? '' : (e.salary || '');
   $('mRole').value = isCreate ? 'employee' : e.role;
@@ -642,7 +832,8 @@ $('mSave').onclick = async () => {
   const roleVisible = !$('mRoleWrap').classList.contains('hidden');
   const prof = {
     position: $('mPos').value.trim(), startDate: $('mStart').value,
-    birthDate: $('mBirth').value, salary: $('mSalary').value.trim()
+    birthDate: $('mBirth').value, salary: $('mSalary').value.trim(),
+    supervisor: $('mSup').value
   };
 
   setModalBusy(true);
