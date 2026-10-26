@@ -33,7 +33,7 @@
   button.danger { background:var(--red); }
   button.link { background:none; color:var(--muted); font-size:14px; font-weight:500; padding:8px; width:auto; display:inline-block; }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  input[type=text], input[type=password], select { width:100%; padding:14px; font-size:17px; border:1px solid var(--line); border-radius:12px; margin:8px 0; background:#fff; color:var(--text); }
+  input[type=text], input[type=password], input[type=date], select { width:100%; padding:14px; font-size:17px; border:1px solid var(--line); border-radius:12px; margin:8px 0; background:#fff; color:var(--text); }
   input[readonly] { background:#f1f4f7; color:var(--muted); }
   .row { display:flex; justify-content:space-between; align-items:center; margin:8px 0; font-size:15px; }
   .top { display:flex; justify-content:space-between; align-items:flex-start; }
@@ -61,6 +61,8 @@
   .sheet { background:#fff; width:100%; max-width:480px; border-radius:20px 20px 0 0; padding:18px; max-height:92vh; overflow:auto; }
   label.chk { display:flex; align-items:center; gap:10px; margin:10px 0; font-size:16px; }
   label.chk input { width:20px; height:20px; }
+  .days { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+  .days label { display:flex; align-items:center; gap:6px; padding:8px 12px; border:1px solid var(--line); border-radius:999px; font-size:15px; }
   .actions { display:flex; gap:8px; margin-top:8px; }
   .actions button { flex:1; padding:14px 8px; font-size:15px; }
 </style>
@@ -95,16 +97,19 @@
         <button class="link" id="logoutBtn">ออกจากระบบ</button>
       </div>
       <button id="manageBtn" class="gray hidden" style="margin-top:12px">👥 จัดการพนักงาน</button>
-      <div class="row" style="margin-top:12px">
-        <span>ตำแหน่งปัจจุบัน</span>
-        <span id="gpsPill" class="pill wait">กำลังหาตำแหน่ง...</span>
-      </div>
-      <div class="row">
-        <span>ระยะจากสาขา</span><span id="distText">-</span>
+      <div class="muted" id="schedText" style="margin-top:10px"></div>
+      <div id="gpsRows">
+        <div class="row" style="margin-top:12px">
+          <span>ตำแหน่งปัจจุบัน</span>
+          <span id="gpsPill" class="pill wait">กำลังหาตำแหน่ง...</span>
+        </div>
+        <div class="row">
+          <span>ระยะจากสาขา</span><span id="distText">-</span>
+        </div>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="clockCard">
       <button type="button" id="takePhotoBtn" class="btn">📷 ถ่ายรูปเพื่อลงเวลา</button>
       <input type="file" id="photoInput" accept="image/*" capture="user">
       <div id="previewBox" class="hidden">
@@ -115,7 +120,7 @@
       <div id="actionMsg"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="logCard">
       <div class="muted" style="margin-bottom:6px">บันทึกวันนี้</div>
       <div id="todayLog"><div class="muted">ยังไม่มีบันทึก</div></div>
     </div>
@@ -154,6 +159,13 @@
     <h1 id="mTitle">เพิ่มพนักงาน</h1>
     <input type="text" id="mCode" placeholder="รหัสพนักงาน (A-Z 0-9 _ -)" autocapitalize="off" autocomplete="off">
     <input type="text" id="mName" placeholder="ชื่อ-สกุล" autocomplete="off">
+    <div class="muted" style="margin-top:6px">ตำแหน่ง</div>
+    <select id="mPos"></select>
+    <div class="muted" style="margin-top:6px">วันเริ่มงาน</div>
+    <input type="date" id="mStart">
+    <div class="muted">วันเกิด</div>
+    <input type="date" id="mBirth">
+    <input type="text" id="mSalary" inputmode="decimal" placeholder="เงินเดือน (บาท)" autocomplete="off">
     <div id="mRoleWrap">
       <div class="muted" style="margin-top:6px">สิทธิ์การใช้งาน</div>
       <select id="mRole">
@@ -255,8 +267,30 @@ async function loadStatus() {
   state.nextType = r.nextType;
   renderToday(r.today);
   updateButton();
+  applySchedule(r.schedule);
   show('mainView');
-  if (!state.started) { state.started = true; startClock(); startGps(); }
+  if (!state.clockStarted) { state.clockStarted = true; startClock(); }
+  if (r.schedule.required && !state.gpsStarted) { state.gpsStarted = true; startGps(); }
+}
+
+/* ---------- ตารางงานตามตำแหน่ง ---------- */
+function applySchedule(sc) {
+  state.sched = sc;
+  ['clockCard', 'logCard', 'gpsRows'].forEach(id => $(id).classList.toggle('hidden', !sc.required));
+  let t;
+  if (!sc.required) t = 'ตำแหน่งของคุณไม่ต้องลงเวลาเข้า-ออกงาน';
+  else if (sc.type === 'sales') {
+    const wd = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+    const up = (sc.upcoming || []).map(s => {
+      const p = s.split('-').map(Number);
+      return wd[new Date(p[0], p[1] - 1, p[2]).getDay()] + ' ' + p[2] + '/' + p[1];
+    });
+    t = 'ตารางเข้าบริษัท: ' + (up.length ? up.join(' · ') : 'ยังไม่มีตารางงาน กรุณาติดต่อ HR') + ' · ' + sc.start + '-' + sc.end;
+  } else {
+    t = 'วันทำงาน ' + (sc.days.join(',') === 'จ,อ,พ,พฤ,ศ,ส' ? 'จ-ส' : sc.days.join(' ')) + ' · ' + sc.start + '-' + sc.end;
+  }
+  if (sc.required && !sc.todayWorkday) t += ' (วันนี้ไม่ใช่วันทำงานตามตาราง)';
+  $('schedText').textContent = t;
 }
 
 /* ---------- เข้าสู่ระบบ ---------- */
@@ -478,7 +512,8 @@ $('submitBtn').onclick = async () => {
       photo:state.photo, deviceId
     });
     if (!r.ok) { const e = new Error(r.error); e.code = r.code; throw e; }
-    setMsg($('actionMsg'), (r.type === 'in' ? 'ลงเวลาเข้างานสำเร็จ ' : 'ลงเวลาออกงานสำเร็จ ') + r.time, 'good');
+    setMsg($('actionMsg'), (r.type === 'in' ? 'ลงเวลาเข้างานสำเร็จ ' : 'ลงเวลาออกงานสำเร็จ ') + r.time +
+      (r.status && r.status !== 'ปกติ' ? ' · ' + r.status : ''), 'good');
     resetPhoto();
     await refreshToday();
   } catch (e) {
@@ -507,12 +542,12 @@ $('manageBtn').onclick = async () => {
 $('backBtn').onclick = () => { closeModal(); loadStatus().catch(() => show('mainView')); };
 $('searchBox').addEventListener('input', renderList);
 $('addEmpBtn').onclick = () => openModal('create', null);
-
 async function loadEmployees() {
   $('empList').innerHTML = '<div class="muted">กำลังโหลด...</div>';
   try {
     const r = await call({ action:'listEmployees' });
     state.list = r.employees;
+    state.positions = r.positions || [];
     renderList();
   } catch (e) {
     $('empList').innerHTML = '';
@@ -538,7 +573,7 @@ function renderList() {
     row.className = 'emp ' + (e.editable ? 'click' : 'dim');
     const left = document.createElement('div');
     const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = e.name || '(ไม่มีชื่อ)';
-    const cd = document.createElement('div'); cd.className = 'muted'; cd.textContent = e.code + (e.isSelf ? ' (คุณ)' : '');
+    const cd = document.createElement('div'); cd.className = 'muted'; cd.textContent = e.code + (e.isSelf ? ' (คุณ)' : '') + (e.position ? ' · ' + e.position : '');
     left.append(nm, cd);
     const right = document.createElement('div'); right.className = 'badges';
     if (e.role !== 'employee') addBadge(right, ROLE_LABEL[e.role], e.role);
@@ -552,6 +587,19 @@ function renderList() {
 
 /* ---------- ฟอร์มเพิ่ม/แก้ไข ---------- */
 let modalCtx = null;
+const dateVal = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '') ? s : '';
+
+function fillPositions(cur) {
+  const sel = $('mPos');
+  sel.innerHTML = '';
+  const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+  const list = state.positions || [];
+  add('', '— เลือกตำแหน่ง —');
+  list.forEach(p => add(p, p));
+  if (cur && list.indexOf(cur) < 0) add(cur, cur + ' (ค่าเดิม)');
+  sel.value = cur || '';
+}
+
 
 function openModal(mode, e) {
   modalCtx = { mode, target: e };
@@ -564,6 +612,9 @@ function openModal(mode, e) {
   $('mCode').value = isCreate ? '' : e.code;
   $('mCode').readOnly = !isCreate;
   $('mName').value = isCreate ? '' : e.name;
+  fillPositions(isCreate ? '' : (e.position || ''));  $('mStart').value = isCreate ? '' : dateVal(e.startDate);
+  $('mBirth').value = isCreate ? '' : dateVal(e.birthDate);
+  $('mSalary').value = isCreate ? '' : (e.salary || '');
   $('mRole').value = isCreate ? 'employee' : e.role;
   $('mRoleWrap').classList.toggle('hidden', !(isAdmin && !isRootT && !isSelf));
   $('mOffWrap').classList.toggle('hidden', isCreate || isRootT || isSelf);
@@ -589,14 +640,18 @@ $('mSave').onclick = async () => {
   if (!code) return setMsg($('mMsg'), 'กรุณากรอกรหัสพนักงาน', 'err');
   if (!name) return setMsg($('mMsg'), 'กรุณากรอกชื่อ-สกุล', 'err');
   const roleVisible = !$('mRoleWrap').classList.contains('hidden');
+  const prof = {
+    position: $('mPos').value.trim(), startDate: $('mStart').value,
+    birthDate: $('mBirth').value, salary: $('mSalary').value.trim()
+  };
 
   setModalBusy(true);
   setMsg($('mMsg'), '');
   try {
     if (ctx.mode === 'create') {
-      await call({ action:'saveEmployee', mode:'create', code, name, role: roleVisible ? $('mRole').value : 'employee' });
+      await call({ action:'saveEmployee', mode:'create', code, name, ...prof, role: roleVisible ? $('mRole').value : 'employee' });
     } else {
-      await call({ action:'saveEmployee', mode:'update', code, name, disabled: $('mOff').checked });
+      await call({ action:'saveEmployee', mode:'update', code, name, ...prof, disabled: $('mOff').checked });
       if (roleVisible && $('mRole').value !== ctx.target.role) {
         await call({ action:'setRole', code, role: $('mRole').value });
       }
