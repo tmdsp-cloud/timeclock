@@ -106,6 +106,7 @@
       </div>
       <button id="leaveBtn" class="gray" style="margin-top:12px">📝 ขออนุมัติลา <span id="leaveBadge" class="badge hidden"></span></button>
       <button id="otBtn" class="gray" style="margin-top:8px">⏱ ขอทำ OT</button>
+      <button id="payBtn" class="gray" style="margin-top:8px">💵 เงินเดือน</button>
       <button id="manageBtn" class="gray hidden" style="margin-top:8px">👥 จัดการพนักงาน</button>
       <div class="muted" id="schedText" style="margin-top:10px"></div>
       <div id="gpsRows">
@@ -225,6 +226,33 @@
       <div id="manageMsg"></div>
     </div>
     <div class="card" id="empList"></div>
+  </div>
+
+  <!-- เงินเดือน -->
+  <div id="payView" class="hidden">
+    <div class="card">
+      <div class="top">
+        <h1>เงินเดือน</h1>
+        <button class="link" id="payBack">← กลับ</button>
+      </div>
+      <div class="row hidden" id="payTabs" style="gap:8px;margin-top:8px">
+        <button id="payTabMine" class="primary">ของฉัน</button>
+        <button id="payTabRun" class="gray">จัดทำ/อนุมัติเงินเดือน</button>
+      </div>
+      <div id="payMsg"></div>
+    </div>
+    <div id="payMine"></div>
+    <div id="payRun" class="hidden">
+      <div class="card">
+        <input type="month" id="payCycleInput">
+        <div class="muted" id="payCycleText"></div>
+        <div id="payRunInfo" style="margin-top:8px"></div>
+        <div id="payActions" style="margin-top:8px"></div>
+        <button id="payCsv" class="gray" style="margin-top:8px">⬇ ดาวน์โหลด CSV</button>
+        <div id="payRunMsg"></div>
+      </div>
+      <div class="card"><div id="payRows"></div></div>
+    </div>
   </div>
 
   <!-- สรุป OT รายเดือน (HR / ผู้ดูแลระบบ) -->
@@ -352,7 +380,7 @@ async function call(payload) {
 }
 
 function show(id) {
-  ['loading','loginView','mainView','manageView','leaveView','otView','otReportView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  ['loading','loginView','mainView','manageView','leaveView','otView','otReportView','payView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
 }
 function setMsg(el, text, kind) {
   el.innerHTML = '';
@@ -660,6 +688,186 @@ async function refreshToday() {
 }
 
 /* ================= จัดการพนักงาน ================= */
+/* ---------- เงินเดือน ---------- */
+const PAY_UNOFFICIAL = '⚠ ตัวเลขนี้ไม่เป็นทางการ จนกว่าผู้จัดการจะอนุมัติ';
+function pRow(parent, label, value, cls, strong) {
+  const r = document.createElement('div'); r.className = 'row';
+  const a = document.createElement(strong ? 'b' : 'span'); a.textContent = label;
+  const b = document.createElement(strong ? 'b' : 'span'); b.textContent = value;
+  if (cls === 'minus') b.style.color = '#b4232a';
+  if (cls === 'plus') b.style.color = '#15803d';
+  r.append(a, b); parent.appendChild(r);
+}
+function renderPayLine(l, box) {
+  const m = n => money(n);
+  const days = x => (Math.round(x * 100) / 100) + ' วัน';
+  pRow(box, l.type === 'รายวัน' ? 'ค่าแรงตามวันทำงาน' + (l.payableDays === undefined ? '' : ' (' + days(l.payableDays) + ')') : 'เงินเดือน', m(l.basePay));
+  if (l.type !== 'รายวัน' && (l.absentDed || l.absentDays)) pRow(box, 'หักขาดงาน (' + days(l.absentDays) + ')', '-' + m(l.absentDed), 'minus');
+  if (l.type === 'รายวัน' && l.absentDays) pRow(box, 'ขาดงาน (ไม่ได้ค่าจ้าง)', days(l.absentDays));
+  if (l.otAmount || l.otHours) pRow(box, 'ค่า OT (' + l.otHours + ' ชม.)', '+' + m(l.otAmount), 'plus');
+  if (l.commission) pRow(box, 'ค่าคอมมิชชั่น', '+' + m(l.commission), 'plus');
+  pRow(box, 'รายได้รวม', m(l.gross), '', true);
+  if (l.type === 'สัญญาจ้าง') pRow(box, 'ประกันสังคม', 'ไม่หัก (สัญญาจ้าง)');
+  else pRow(box, 'หักประกันสังคม', '-' + m(l.ss), 'minus');
+  if (l.lateMins || l.lateDed) pRow(box, 'หักมาสาย (' + l.lateMins + ' นาที)', '-' + m(l.lateDed), 'minus');
+  if (l.earlyMins || l.earlyDed) pRow(box, 'หักออกก่อนเวลา (' + l.earlyMins + ' นาที)', '-' + m(l.earlyDed), 'minus');
+  pRow(box, 'เงินได้สุทธิ', m(l.net) + ' ฿', '', true);
+  if (l.remark) { const d = document.createElement('div'); d.className = 'muted'; d.textContent = 'หมายเหตุ: ' + l.remark; box.appendChild(d); }
+  if (l.flag) { const d = document.createElement('div'); d.className = 'muted'; d.style.color = '#b4232a'; d.textContent = '⚠ ' + l.flag; box.appendChild(d); }
+}
+function payTab(name) {
+  $('payMine').classList.toggle('hidden', name !== 'Mine');
+  $('payRun').classList.toggle('hidden', name !== 'Run');
+  $('payTabMine').className = name === 'Mine' ? 'primary' : 'gray';
+  $('payTabRun').className = name === 'Run' ? 'primary' : 'gray';
+}
+$('payTabMine').onclick = () => payTab('Mine');
+$('payTabRun').onclick = async () => { payTab('Run'); await loadPayRun(); };
+$('payBack').onclick = () => { loadStatus().catch(() => show('mainView')); };
+$('payBtn').onclick = async () => { show('payView'); payTab('Mine'); setMsg($('payMsg'), ''); await loadPayMine(); };
+
+async function loadPayMine() {
+  const box = $('payMine');
+  box.innerHTML = '<div class="card"><div class="muted">กำลังโหลด...</div></div>';
+  try {
+    const r = await call({ action:'payrollMine' });
+    $('payTabs').classList.toggle('hidden', !r.canManage);
+    box.innerHTML = '';
+    r.cycles.forEach(c => {
+      const card = document.createElement('div'); card.className = 'card';
+      const h = document.createElement('div'); h.className = 'nm'; h.textContent = cycleText(c.cycle); card.appendChild(h);
+      const bn = document.createElement('div'); bn.style.cssText = 'margin:6px 0;font-weight:600;font-size:14px;color:' + (c.official ? '#15803d' : '#b45309');
+      bn.textContent = c.official ? '✔ ตัวเลขทางการ (ผู้จัดการอนุมัติแล้ว)' : PAY_UNOFFICIAL;
+      card.appendChild(bn);
+      if (!c.official) {
+        const st = document.createElement('div'); st.className = 'muted';
+        st.textContent = 'สถานะ: ' + c.statusLabel + ' · คำนวณถึงวันที่ ' + thDate(c.asOf) + (c.cycle.end > c.asOf ? ' (รอบยังไม่สิ้นสุด เงินเดือนเต็มรอบ หักตามที่เกิดขึ้นจริงจนถึงตอนนี้)' : '');
+        card.appendChild(st);
+      }
+      renderPayLine(c.line, card);
+      box.appendChild(card);
+    });
+    if (r.history.length) {
+      const card = document.createElement('div'); card.className = 'card';
+      const h = document.createElement('div'); h.className = 'muted'; h.textContent = 'รอบที่อนุมัติแล้ว'; card.appendChild(h);
+      r.history.forEach(x => {
+        const d = document.createElement('details'); d.style.padding = '6px 0';
+        const sm = document.createElement('summary'); sm.textContent = cycleText(x.cycle) + ' · สุทธิ ' + money(x.line.net) + ' ฿';
+        d.appendChild(sm); renderPayLine(x.line, d); card.appendChild(d);
+      });
+      box.appendChild(card);
+    }
+    const n = document.createElement('div'); n.className = 'muted'; n.style.cssText = 'font-size:12px;padding:0 4px 8px';
+    n.textContent = 'หักประกันสังคม ' + r.ssRate + '% สูงสุด ' + money(r.ssCap) + ' บาท (สัญญาจ้างไม่หัก) · มาสาย/ออกก่อนหักตามนาที × ' + r.penaltyMult;
+    box.appendChild(n);
+  } catch (e) {
+    if (e.code === 'AUTH') return;
+    box.innerHTML = '';
+    setMsg($('payMsg'), e.message + ' (หากเพิ่งอัปเดต ตรวจว่า Deploy Apps Script เวอร์ชันใหม่แล้ว)', 'err');
+  }
+}
+
+async function loadPayRun() {
+  setMsg($('payRunMsg'), '');
+  $('payRows').innerHTML = '<div class="muted">กำลังโหลด...</div>';
+  try {
+    const r = await call({ action:'payrollRun', cycle:$('payCycleInput').value });
+    state.payRun = r;
+    $('payCycleInput').value = r.cycle.key;
+    $('payCycleText').textContent = cycleText(r.cycle) + ' (เลือกเดือนที่รอบเริ่มต้น)';
+    const info = $('payRunInfo'); info.innerHTML = '';
+    const stLabel = r.run ? ({ draft:'ฉบับร่าง', pending:'รออนุมัติ', approved:'อนุมัติแล้ว', returned:'ส่งกลับแก้ไข' }[r.run.status]) : 'ยังไม่ได้จัดทำ';
+    const l1 = document.createElement('div'); l1.className = 'nm'; l1.textContent = 'สถานะ: ' + stLabel; info.appendChild(l1);
+    const l2 = document.createElement('div'); l2.className = 'muted';
+    const dd = r.daysToDeadline;
+    l2.textContent = 'กำหนดส่งอนุมัติ ' + thDate(r.deadline) + (r.run && r.run.status === 'approved' ? '' : (dd >= 0 ? ' (อีก ' + dd + ' วัน)' : ' (เลยกำหนดแล้ว ' + (-dd) + ' วัน)')) +
+      (r.ended ? '' : ' · รอบนี้ยังไม่สิ้นสุด');
+    if (r.run && r.run.status !== 'approved' && dd <= 2) l2.style.color = '#b4232a';
+    info.appendChild(l2);
+    if (r.run && r.run.late) { const x = document.createElement('div'); x.className = 'muted'; x.style.color = '#b4232a'; x.textContent = '⚠ ส่งล่าช้ากว่ากำหนด'; info.appendChild(x); }
+    if (r.run && r.run.status === 'approved') { const x = document.createElement('div'); x.className = 'muted'; x.textContent = 'อนุมัติโดย ' + r.run.approvedBy + ' · ' + r.run.approvedAt; info.appendChild(x); }
+    if (r.run && r.run.status === 'returned') { const x = document.createElement('div'); x.className = 'muted'; x.style.color = '#b4232a'; x.textContent = 'ส่งกลับ: ' + r.run.note; info.appendChild(x); }
+    if (r.run && r.run.status === 'pending') { const x = document.createElement('div'); x.className = 'muted'; x.textContent = 'ส่งโดย ' + r.run.submittedBy + ' · ' + r.run.submittedAt; info.appendChild(x); }
+    renderPayActions(r);
+    renderPayRows(r);
+  } catch (e) {
+    if (e.code === 'AUTH') return;
+    $('payRows').innerHTML = '';
+    setMsg($('payRunMsg'), e.message, 'err');
+  }
+}
+$('payCycleInput').onchange = loadPayRun;
+
+function renderPayActions(r) {
+  const box = $('payActions'); box.innerHTML = '';
+  const btn = (text, cls, fn) => { const b = document.createElement('button'); b.className = cls; b.style.marginTop = '8px'; b.textContent = text;
+    b.onclick = async () => { b.disabled = true; try { await fn(); } catch (e) { setMsg($('payRunMsg'), e.message, 'err'); } finally { b.disabled = false; } }; box.appendChild(b); return b; };
+  if (r.canPrepare) btn(r.run ? '🔄 คำนวณใหม่จากข้อมูลล่าสุด' : '🧮 จัดทำเงินเดือนรอบนี้', 'primary', async () => {
+    const x = await call({ action:'payrollPrepare', cycle:r.cycle.key });
+    await loadPayRun();
+    setMsg($('payRunMsg'), 'คำนวณแล้ว ' + x.count + ' คน' + (x.flagged ? ' · ⚠ ' + x.flagged + ' คนยังคำนวณไม่ได้ (ไม่ระบุประเภท/ค่าจ้าง)' : ''), x.flagged ? '' : 'good');
+  });
+  if (r.canSubmit) btn('📤 ส่งให้ผู้จัดการอนุมัติ', 'primary', async () => {
+    if (r.flagged && !confirm('มี ' + r.flagged + ' คนที่คำนวณเงินไม่ได้ (เงินเป็น 0) ส่งอนุมัติต่อไปหรือไม่?')) return;
+    if (!confirm('ส่งเงินเดือนรอบนี้ให้ผู้จัดการอนุมัติ? หลังส่งจะแก้ไขไม่ได้จนกว่าผู้จัดการจะส่งกลับ')) return;
+    const x = await call({ action:'payrollSubmit', cycle:r.cycle.key });
+    await loadPayRun();
+    setMsg($('payRunMsg'), 'ส่งอนุมัติแล้ว' + (x.late ? ' (ส่งล่าช้ากว่ากำหนด ' + thDate(x.deadline) + ')' : ''), x.late ? '' : 'good');
+  });
+  if (r.canDecide) {
+    const note = document.createElement('input'); note.type = 'text'; note.maxLength = 200; note.placeholder = 'หมายเหตุ (จำเป็นเมื่อส่งกลับแก้ไข)'; box.appendChild(note);
+    btn('✔ อนุมัติเงินเดือนรอบนี้', 'primary', async () => {
+      if (!confirm('อนุมัติเงินเดือนรอบนี้ทั้งหมด ' + r.rows.length + ' คน รวมสุทธิ ' + money(r.totals.net) + ' บาท?')) return;
+      await call({ action:'payrollDecide', cycle:r.cycle.key, decision:'approve', note:note.value.trim() });
+      await loadPayRun(); setMsg($('payRunMsg'), 'อนุมัติแล้ว', 'good');
+    });
+    btn('↩ ส่งกลับให้ HR แก้ไข', 'danger', async () => {
+      await call({ action:'payrollDecide', cycle:r.cycle.key, decision:'reject', note:note.value.trim() });
+      await loadPayRun(); setMsg($('payRunMsg'), 'ส่งกลับแล้ว', 'good');
+    });
+  }
+}
+
+function renderPayRows(r) {
+  const box = $('payRows'); box.innerHTML = '';
+  if (!r.run) { box.innerHTML = '<div class="muted">ยังไม่ได้จัดทำเงินเดือนรอบนี้ กดปุ่ม "จัดทำเงินเดือนรอบนี้" (HR)</div>'; return; }
+  const sum = document.createElement('div'); sum.className = 'muted'; sum.style.marginBottom = '8px';
+  sum.textContent = 'รวม ' + r.rows.length + ' คน · รายได้รวม ' + money(r.totals.gross) + ' · ประกันสังคม ' + money(r.totals.ss) + ' · เงินได้สุทธิ ' + money(r.totals.net) + ' ฿' + (r.flagged ? ' · ⚠ ' + r.flagged + ' คนคำนวณไม่ได้' : '');
+  box.appendChild(sum);
+  r.rows.forEach(x => {
+    const d = document.createElement('details'); d.style.cssText = 'padding:8px 0;border-bottom:1px solid #e5e7eb';
+    const sm = document.createElement('summary'); sm.textContent = x.name + ' (' + x.code + ') · ' + money(x.net) + ' ฿' + (x.flag ? ' ⚠' : '');
+    d.appendChild(sm);
+    renderPayLine(x, d);
+    if (x.commissionEligible && r.canEditCommission) {
+      const w = document.createElement('div'); w.style.marginTop = '8px';
+      const cm = document.createElement('input'); cm.type = 'text'; cm.inputMode = 'decimal'; cm.placeholder = 'ค่าคอมมิชชั่น (บาท)'; cm.value = x.commission || '';
+      const rm = document.createElement('input'); rm.type = 'text'; rm.maxLength = 200; rm.placeholder = 'หมายเหตุ'; rm.value = x.remark || '';
+      const sv = document.createElement('button'); sv.className = 'primary'; sv.textContent = 'บันทึกค่าคอม';
+      sv.onclick = async () => {
+        sv.disabled = true;
+        try { await call({ action:'payrollCommission', cycle:r.cycle.key, code:x.code, commission:cm.value.trim(), remark:rm.value.trim() }); await loadPayRun(); setMsg($('payRunMsg'), 'บันทึกค่าคอมของ ' + x.name + ' แล้ว', 'good'); }
+        catch (e) { setMsg($('payRunMsg'), e.message, 'err'); } finally { sv.disabled = false; }
+      };
+      w.append(cm, rm, sv); d.appendChild(w);
+    }
+    box.appendChild(d);
+  });
+}
+$('payCsv').onclick = () => {
+  const r = state.payRun;
+  if (!r || !r.rows.length) return setMsg($('payRunMsg'), 'ไม่มีข้อมูลให้ดาวน์โหลด', 'err');
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const head = ['รหัส','ชื่อ','ประเภท','เงินเดือน/ค่าแรง','วันขาด','หักขาดงาน','นาทีสาย','หักมาสาย','นาทีออกก่อน','หักออกก่อน','ค่า OT','ค่าคอม','รายได้รวม','ประกันสังคม','เงินได้สุทธิ','หมายเหตุ'];
+  const lines = [head.map(q).join(',')];
+  r.rows.forEach(x => lines.push([x.code, x.name, x.type, x.basePay, x.absentDays, x.absentDed, x.lateMins, x.lateDed, x.earlyMins, x.earlyDed, x.otAmount, x.commission, x.gross, x.ss, x.net, x.remark].map(q).join(',')));
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'payroll-' + r.cycle.start + '_' + r.cycle.end + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
 /* ---------- Dashboard ---------- */
 const TH_MON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 function thShort(s) { const p = s.split('-').map(Number); return p[2] + ' ' + TH_MON[p[1] - 1]; }
