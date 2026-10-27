@@ -3,19 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2563eb">
+<meta name="theme-color" content="#34353C">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="ลงเวลา">
+<meta name="apple-mobile-web-app-title" content="TMDSP_HR">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>ลงเวลาเข้า-ออกงาน</title>
+<title>TMDSP_HR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:#f4f6f8; --card:#fff; --text:#1f2933; --muted:#6b7785;
     --green:#16a34a; --red:#e5484d; --blue:#2563eb; --line:#e3e8ee;
   }
   * { box-sizing:border-box; }
-  body { margin:0; font-family:-apple-system,"Sarabun","Noto Sans Thai",sans-serif; background:var(--bg); color:var(--text); padding:16px; padding-bottom:32px; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; font-family:-apple-system,"Sarabun","Noto Sans Thai",sans-serif; background:var(--bg); color:var(--text);
+    padding:16px; padding-bottom:32px; padding-left:max(16px,env(safe-area-inset-left)); padding-right:max(16px,env(safe-area-inset-right)); padding-bottom:max(32px,env(safe-area-inset-bottom)); }
   .wrap { max-width:480px; margin:0 auto; }
   .card { background:var(--card); border-radius:16px; padding:18px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
   h1 { font-size:18px; margin:0 0 4px; }
@@ -33,7 +37,7 @@
   button.danger { background:var(--red); }
   button.link { background:none; color:var(--muted); font-size:14px; font-weight:500; padding:8px; width:auto; display:inline-block; }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  input[type=text], input[type=password], input[type=date], select { width:100%; padding:14px; font-size:17px; border:1px solid var(--line); border-radius:12px; margin:8px 0; background:#fff; color:var(--text); }
+  input[type=text], input[type=password], input[type=date], input[type=time], input[type=month], input[type=number], select { width:100%; min-width:0; padding:14px; font-size:17px; border:1px solid var(--line); border-radius:12px; margin:8px 0; background:#fff; color:var(--text); }
   input[readonly] { background:#f1f4f7; color:var(--muted); }
   .row { display:flex; justify-content:space-between; align-items:center; margin:8px 0; font-size:15px; }
   .top { display:flex; justify-content:space-between; align-items:flex-start; }
@@ -73,14 +77,101 @@
   .days label { display:flex; align-items:center; gap:6px; padding:8px 12px; border:1px solid var(--line); border-radius:999px; font-size:15px; }
   .actions { display:flex; gap:8px; margin-top:8px; }
   .actions button { flex:1; padding:14px 8px; font-size:15px; }
+  details > summary { cursor:pointer; padding:4px 0; }
+  .cols > * { min-width:0; }
+  #camVideo { max-height:70vh; object-fit:cover; }
+
+  /* ===== จอกว้าง: แท็บเล็ต / PC ===== */
+  @media (min-width:700px) {
+    body { padding:24px; }
+    .wrap { max-width:720px; }
+    .card { padding:22px; }
+    button { transition:filter .15s; }
+    input[type=text], input[type=password], input[type=date], input[type=time], input[type=month], input[type=number], select { padding:12px 14px; font-size:16px; }
+    .modal { align-items:center; }
+    .sheet { border-radius:20px; max-width:520px; }
+    .actions button { width:auto; }
+  }
+  @media (min-width:800px) {
+    .wrap.main { max-width:1180px; }
+    .wrap.main .cols { display:grid; grid-template-columns:minmax(340px,420px) 1fr; gap:16px; align-items:start; }
+    .tiles { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+  }
+  @media (hover:hover) {
+    button:not(:disabled):hover { filter:brightness(.93); }
+    .emp.click:hover { background:#f4f8ff; }
+    button.link:hover { text-decoration:underline; filter:none; }
+  }
+
+  /* ===== มือถือแนวนอน (จอเตี้ย) ===== */
+  @media (orientation:landscape) and (max-height:520px) {
+    body { padding-top:10px; padding-bottom:16px; }
+    .card { padding:12px 14px; margin-bottom:10px; }
+    .clock { font-size:30px; margin-top:0; }
+    button, .btn { padding:11px; font-size:16px; }
+    .modal { align-items:center; }
+    .sheet { border-radius:16px; max-height:96vh; max-width:560px; }
+    #camVideo { max-height:58vh; }
+  }
+
+  /* ===== ธีม TMDSP_HR (โทนเทาเข้ม + การ์ดขาว + เขียวเทียล) ===== */
+  :root { --bg:#34353c; --brand:#2f7d5b; --brand2:#e3f3ec; --green:#2f7d5b; --blue:#2f7d5b; --text:#1f2a37; --muted:#7a8696; --line:#e1e6ec; }
+  body { background:var(--bg); font-family:"Noto Sans Thai","Sarabun",-apple-system,sans-serif;
+    padding-top:calc(78px + env(safe-area-inset-top)); padding-bottom:calc(120px + env(safe-area-inset-bottom)); }
+  .card { border-radius:22px; box-shadow:0 4px 0 #c5ced8; padding:20px; }
+  h1 { font-size:19px; }
+  .tile { background:#f1f5f3; }
+  .tile b { color:var(--brand); }
+  .dsec h2 { color:var(--text); }
+  button.gray { background:#eef1f4; color:var(--text); }
+  button, .btn { border-radius:16px; }
+  button.link { color:var(--muted); }
+  .badge.hr { background:var(--brand2); color:var(--brand); }
+  #loading .muted { color:var(--muted); }
+  .topbar { position:fixed; top:0; left:0; right:0; z-index:20; background:var(--bg); display:flex; align-items:center; gap:12px;
+    padding:calc(12px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left)); }
+  .topbar .who { flex:1; min-width:0; color:#fff; font-weight:600; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .topbar .who small { display:block; color:#aeb4bf; font-weight:400; font-size:12px; }
+  .topbar .round { width:44px; height:44px; padding:0; border-radius:50%; background:#44454d; color:#fff; font-size:18px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .logo { display:flex; align-items:center; gap:8px; color:#fff; font-weight:700; font-size:20px; letter-spacing:.3px; }
+  .logo .mark { width:34px; height:34px; border-radius:10px; background:var(--brand); display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; }
+  .logo.big { color:var(--brand); margin-bottom:12px; font-size:24px; }
+  .navbar { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(12px + env(safe-area-inset-bottom)); z-index:20; width:calc(100% - 24px); max-width:560px;
+    display:flex; gap:2px; padding:8px; border-radius:30px; background:rgba(70,72,80,.88); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:2px solid rgba(255,255,255,.55); box-shadow:0 8px 24px rgba(0,0,0,.35); }
+  .navbar button { flex:1; background:none; color:#c9ced6; border-radius:22px; padding:8px 2px; font-size:12px; font-weight:500; display:flex; flex-direction:column; align-items:center; gap:3px; position:relative; }
+  .navbar button i { font-style:normal; font-size:22px; line-height:1; }
+  .navbar button.on { background:rgba(255,255,255,.22); color:#8fe0b9; font-weight:700; }
+  .navbar .dot { position:absolute; top:4px; right:22%; width:10px; height:10px; border-radius:50%; background:var(--red); }
+  .menuBtn { display:none; }
+  .col-a > .card:first-child { text-align:center; }
+  @media (min-width:700px) { .navbar button { font-size:13px; } }
+  .logo .logoimg { height:40px; width:auto; background:#fff; border-radius:10px; padding:3px 8px; display:block; }
+  .logo.big { flex-direction:column; align-items:center; gap:2px; margin-bottom:8px; }
+  .logo.big span { color:var(--brand); font-size:22px; }
+  .logofull { width:200px; max-width:70%; height:auto; display:block; }
+  #loginView h1 { text-align:center; }
 </style>
 </head>
 <body>
+<div class="topbar hidden" id="topbar">
+  <div class="logo"><img src="logo-mark.png" alt="Tmd" class="logoimg"></div>
+  <div class="who"><span id="tbName">TMDSP_HR</span><small id="tbSub">TMDSP_HR</small></div>
+  <button class="round" id="tbOut" title="ออกจากระบบ" aria-label="ออกจากระบบ">⏻</button>
+</div>
+<nav class="navbar hidden" id="navbar">
+  <button data-nav="home"><i>🏠</i>หน้าหลัก</button>
+  <button data-nav="leave"><i>📝</i>ขอลา<span class="dot hidden" id="navDot"></span></button>
+  <button data-nav="ot"><i>⏱</i>OT</button>
+  <button data-nav="pay"><i>💵</i>เงินเดือน</button>
+  <button data-nav="manage" id="navManage"><i>👥</i>จัดการ</button>
+</nav>
 <div class="wrap">
 
   <!-- เข้าสู่ระบบ -->
   <div id="loginView" class="card hidden">
-    <h1>เข้าสู่ระบบลงเวลา</h1>
+    <div class="logo big"><img src="logo.png" alt="TMD (SAMUT PRAKAN) CO.,LTD." class="logofull"><span>TMDSP_HR</span></div>
+    <h1>เข้าสู่ระบบ</h1>
     <div class="muted" id="loginHint">กรอกรหัสพนักงานและ PIN</div>
     <input type="text" id="empCode" placeholder="รหัสพนักงาน" autocomplete="username" autocapitalize="off">
     <input type="password" id="pin" placeholder="PIN 4-6 หลัก" inputmode="numeric" maxlength="6" autocomplete="current-password">
@@ -91,6 +182,7 @@
 
   <!-- หน้าหลัก -->
   <div id="mainView" class="hidden">
+  <div class="cols"><div class="col-a">
     <div class="card">
       <div class="clock" id="clock">--:--:--</div>
       <div class="date" id="dateText"></div>
@@ -102,12 +194,12 @@
           <h1 id="empName">-</h1>
           <div class="muted" id="empCode2"></div>
         </div>
-        <button class="link" id="logoutBtn">ออกจากระบบ</button>
+        <button class="link menuBtn" id="logoutBtn">ออกจากระบบ</button>
       </div>
-      <button id="leaveBtn" class="gray" style="margin-top:12px">📝 ขออนุมัติลา <span id="leaveBadge" class="badge hidden"></span></button>
-      <button id="otBtn" class="gray" style="margin-top:8px">⏱ ขอทำ OT</button>
-      <button id="payBtn" class="gray" style="margin-top:8px">💵 เงินเดือน</button>
-      <button id="manageBtn" class="gray hidden" style="margin-top:8px">👥 จัดการพนักงาน</button>
+      <button id="leaveBtn" class="menuBtn gray" style="margin-top:12px">📝 ขออนุมัติลา <span id="leaveBadge" class="badge hidden"></span></button>
+      <button id="otBtn" class="menuBtn gray" style="margin-top:8px">⏱ ขอทำ OT</button>
+      <button id="payBtn" class="menuBtn gray" style="margin-top:8px">💵 เงินเดือน</button>
+      <button id="manageBtn" class="menuBtn gray hidden" style="margin-top:8px">👥 จัดการพนักงาน</button>
       <div class="muted" id="schedText" style="margin-top:10px"></div>
       <div id="gpsRows">
         <div class="row" style="margin-top:12px">
@@ -136,7 +228,9 @@
       <div id="todayLog"><div class="muted">ยังไม่มีบันทึก</div></div>
     </div>
 
-    <div id="dashBox"></div>
+    </div>
+    <div class="col-b" id="dashBox"></div>
+  </div>
   </div>
 
   <!-- ขออนุมัติลา -->
@@ -381,6 +475,12 @@ async function call(payload) {
 
 function show(id) {
   ['loading','loginView','mainView','manageView','leaveView','otView','otReportView','payView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  document.querySelector('.wrap').classList.toggle('main', id === 'mainView');
+  const inApp = !['loading','loginView'].includes(id);
+  $('topbar').classList.toggle('hidden', !inApp); $('navbar').classList.toggle('hidden', !inApp);
+  const navOf = { mainView:'home', leaveView:'leave', otView:'ot', payView:'pay', manageView:'manage', otReportView:'manage' }[id];
+  document.querySelectorAll('#navbar button').forEach(b => b.classList.toggle('on', b.dataset.nav === navOf));
+  window.scrollTo(0, 0);
 }
 function setMsg(el, text, kind) {
   el.innerHTML = '';
@@ -412,10 +512,14 @@ async function loadStatus() {
   $('empName').textContent = r.employee.name;
   $('empCode2').textContent = 'รหัส ' + r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
   $('manageBtn').classList.toggle('hidden', !(r.employee.role === 'hr' || r.employee.role === 'admin'));
+  $('navManage').classList.toggle('hidden', !(r.employee.role === 'hr' || r.employee.role === 'admin'));
+  $('tbName').textContent = r.employee.name;
+  $('tbSub').textContent = 'TMDSP_HR · ' + r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
   state.nextType = r.nextType;
   const ap = Number(r.approvalsPending) || 0;
   $('leaveBadge').textContent = ap + ' รออนุมัติ';
   $('leaveBadge').classList.toggle('hidden', !ap);
+  $('navDot').classList.toggle('hidden', !ap);
   renderToday(r.today);
   updateButton();
   // ถ้าหลังบ้านยังเป็นเวอร์ชันเก่า (ไม่ส่ง schedule มา) ใช้ค่ามาตรฐานไปก่อน จะได้ยังล็อกอินและลงเวลาได้
@@ -494,6 +598,12 @@ $('empCode').addEventListener('input', () => {
   }
 });
 
+$('tbOut').onclick = () => $('logoutBtn').click();
+document.querySelectorAll('#navbar button').forEach(b => b.onclick = () => {
+  const k = b.dataset.nav;
+  if (k === 'home') { loadStatus().catch(() => show('mainView')); }
+  else $({ leave:'leaveBtn', ot:'otBtn', pay:'payBtn', manage:'manageBtn' }[k]).click();
+});
 $('logoutBtn').onclick = () => {
   store.del('token');
   state.photo = null; state.me = null;
@@ -702,6 +812,7 @@ function renderPayLine(l, box) {
   const m = n => money(n);
   const days = x => (Math.round(x * 100) / 100) + ' วัน';
   pRow(box, l.type === 'รายวัน' ? 'ค่าแรงตามวันทำงาน' + (l.payableDays === undefined ? '' : ' (' + days(l.payableDays) + ')') : 'เงินเดือน', m(l.basePay));
+  if (l.prorateDed) pRow(box, 'หักตามสัดส่วนวันที่ทำงานจริง (เริ่มงาน/สิ้นสุดสัญญากลางรอบ)', '-' + m(l.prorateDed), 'minus');
   if (l.type !== 'รายวัน' && (l.absentDed || l.absentDays)) pRow(box, 'หักขาดงาน (' + days(l.absentDays) + ')', '-' + m(l.absentDed), 'minus');
   if (l.type === 'รายวัน' && l.absentDays) pRow(box, 'ขาดงาน (ไม่ได้ค่าจ้าง)', days(l.absentDays));
   if (l.otAmount || l.otHours) pRow(box, 'ค่า OT (' + l.otHours + ' ชม.)', '+' + m(l.otAmount), 'plus');
@@ -711,6 +822,7 @@ function renderPayLine(l, box) {
   else pRow(box, 'หักประกันสังคม', '-' + m(l.ss), 'minus');
   if (l.lateMins || l.lateDed) pRow(box, 'หักมาสาย (' + l.lateMins + ' นาที)', '-' + m(l.lateDed), 'minus');
   if (l.earlyMins || l.earlyDed) pRow(box, 'หักออกก่อนเวลา (' + l.earlyMins + ' นาที)', '-' + m(l.earlyDed), 'minus');
+  (l.otherItems || []).forEach(i => pRow(box, 'หัก' + i.label, '-' + m(i.amount), 'minus'));
   pRow(box, 'เงินได้สุทธิ', m(l.net) + ' ฿', '', true);
   if (l.remark) { const d = document.createElement('div'); d.className = 'muted'; d.textContent = 'หมายเหตุ: ' + l.remark; box.appendChild(d); }
   if (l.flag) { const d = document.createElement('div'); d.className = 'muted'; d.style.color = '#b4232a'; d.textContent = '⚠ ' + l.flag; box.appendChild(d); }
@@ -839,6 +951,30 @@ function renderPayRows(r) {
     const sm = document.createElement('summary'); sm.textContent = x.name + ' (' + x.code + ') · ' + money(x.net) + ' ฿' + (x.flag ? ' ⚠' : '');
     d.appendChild(sm);
     renderPayLine(x, d);
+    if (r.canEditCommission) {
+      const dw = document.createElement('div'); dw.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px dashed #d5dbe3';
+      const dh = document.createElement('div'); dh.className = 'muted'; dh.textContent = 'รายการหักอื่นๆ (HR กรอก)'; dw.appendChild(dh);
+      (x.otherItems || []).forEach(i => {
+        const rw = document.createElement('div'); rw.className = 'row';
+        const nm = document.createElement('span'); nm.textContent = i.label + ' · ' + money(i.amount);
+        const del = document.createElement('button'); del.className = 'link'; del.textContent = 'ลบ';
+        del.onclick = async () => {
+          if (!confirm('ลบรายการหัก "' + i.label + '" ?')) return;
+          try { await call({ action:'payrollDeductionDelete', cycle:r.cycle.key, id:i.id }); await loadPayRun(); setMsg($('payRunMsg'), 'ลบรายการหักแล้ว', 'good'); }
+          catch (e) { setMsg($('payRunMsg'), e.message, 'err'); }
+        };
+        rw.append(nm, del); dw.appendChild(rw);
+      });
+      const dl = document.createElement('input'); dl.type = 'text'; dl.maxLength = 60; dl.placeholder = 'ชื่อรายการหัก เช่น เงินยืม, ค่าชุด';
+      const da = document.createElement('input'); da.type = 'text'; da.inputMode = 'decimal'; da.placeholder = 'จำนวนเงิน (บาท)';
+      const db = document.createElement('button'); db.className = 'gray'; db.textContent = '+ เพิ่มรายการหัก';
+      db.onclick = async () => {
+        db.disabled = true;
+        try { await call({ action:'payrollDeductionAdd', cycle:r.cycle.key, code:x.code, label:dl.value.trim(), amount:da.value.trim() }); await loadPayRun(); setMsg($('payRunMsg'), 'เพิ่มรายการหักของ ' + x.name + ' แล้ว', 'good'); }
+        catch (e) { setMsg($('payRunMsg'), e.message, 'err'); } finally { db.disabled = false; }
+      };
+      dw.append(dl, da, db); d.appendChild(dw);
+    }
     if (x.commissionEligible && r.canEditCommission) {
       const w = document.createElement('div'); w.style.marginTop = '8px';
       const cm = document.createElement('input'); cm.type = 'text'; cm.inputMode = 'decimal'; cm.placeholder = 'ค่าคอมมิชชั่น (บาท)'; cm.value = x.commission || '';
@@ -858,9 +994,9 @@ $('payCsv').onclick = () => {
   const r = state.payRun;
   if (!r || !r.rows.length) return setMsg($('payRunMsg'), 'ไม่มีข้อมูลให้ดาวน์โหลด', 'err');
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const head = ['รหัส','ชื่อ','ประเภท','เงินเดือน/ค่าแรง','วันขาด','หักขาดงาน','นาทีสาย','หักมาสาย','นาทีออกก่อน','หักออกก่อน','ค่า OT','ค่าคอม','รายได้รวม','ประกันสังคม','เงินได้สุทธิ','หมายเหตุ'];
+  const head = ['รหัส','ชื่อ','ประเภท','เงินเดือน/ค่าแรง','หักตามสัดส่วนวัน','วันขาด','หักขาดงาน','นาทีสาย','หักมาสาย','นาทีออกก่อน','หักออกก่อน','ค่า OT','ค่าคอม','รายได้รวม','ประกันสังคม','หักอื่นๆ','เงินได้สุทธิ','หมายเหตุ'];
   const lines = [head.map(q).join(',')];
-  r.rows.forEach(x => lines.push([x.code, x.name, x.type, x.basePay, x.absentDays, x.absentDed, x.lateMins, x.lateDed, x.earlyMins, x.earlyDed, x.otAmount, x.commission, x.gross, x.ss, x.net, x.remark].map(q).join(',')));
+  r.rows.forEach(x => lines.push([x.code, x.name, x.type, x.basePay, x.prorateDed, x.absentDays, x.absentDed, x.lateMins, x.lateDed, x.earlyMins, x.earlyDed, x.otAmount, x.commission, x.gross, x.ss, x.otherDed, x.net, x.remark].map(q).join(',')));
   const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'payroll-' + r.cycle.start + '_' + r.cycle.end + '.csv';
