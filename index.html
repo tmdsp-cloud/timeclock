@@ -97,6 +97,7 @@
         <button class="link" id="logoutBtn">ออกจากระบบ</button>
       </div>
       <button id="leaveBtn" class="gray" style="margin-top:12px">📝 ขออนุมัติลา <span id="leaveBadge" class="badge hidden"></span></button>
+      <button id="otBtn" class="gray" style="margin-top:8px">⏱ ขอทำ OT</button>
       <button id="manageBtn" class="gray hidden" style="margin-top:8px">👥 จัดการพนักงาน</button>
       <div class="muted" id="schedText" style="margin-top:10px"></div>
       <div id="gpsRows">
@@ -168,6 +169,39 @@
     <div class="card hidden" id="paneAppr"><div id="lvAppr"></div></div>
   </div>
 
+  <!-- ขอทำ OT -->
+  <div id="otView" class="hidden">
+    <div class="card">
+      <div class="top">
+        <h1>ขอทำ OT</h1>
+        <button class="link" id="otBack">← กลับ</button>
+      </div>
+      <div class="muted" id="otSup" style="margin-top:6px"></div>
+      <div class="muted" id="otSum" style="margin-top:6px"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="gap:8px">
+        <button id="otTabNew" class="primary">ขอ OT</button>
+        <button id="otTabMine" class="gray">คำขอของฉัน</button>
+        <button id="otTabAppr" class="gray hidden">รออนุมัติ <span id="otApprCount"></span></button>
+      </div>
+    </div>
+    <div class="card" id="otPaneNew">
+      <div class="muted">วันที่ทำ OT</div>
+      <input type="date" id="otDate">
+      <div class="muted">เวลาเริ่ม</div>
+      <input type="time" id="otStart" value="17:00">
+      <div class="muted">เวลาสิ้นสุด</div>
+      <input type="time" id="otEnd" value="19:00">
+      <div class="muted" id="otHours"></div>
+      <input type="text" id="otReason" maxlength="200" placeholder="เหตุผล/งานที่ต้องทำ OT" autocomplete="off">
+      <button id="otSubmit" class="primary">ส่งคำขอ</button>
+      <div id="otMsg"></div>
+    </div>
+    <div class="card hidden" id="otPaneMine"><div id="otMine"></div></div>
+    <div class="card hidden" id="otPaneAppr"><div id="otAppr"></div></div>
+  </div>
+
   <!-- จัดการพนักงาน (HR / ผู้ดูแลระบบ) -->
   <div id="manageView" class="hidden">
     <div class="card">
@@ -177,9 +211,24 @@
       </div>
       <input type="text" id="searchBox" placeholder="ค้นหารหัสหรือชื่อ" autocomplete="off">
       <button id="addEmpBtn" class="primary">+ เพิ่มพนักงาน</button>
+      <button id="otReportBtn" class="gray" style="margin-top:8px">💰 สรุป OT รายเดือน (คิดเงิน)</button>
       <div id="manageMsg"></div>
     </div>
     <div class="card" id="empList"></div>
+  </div>
+
+  <!-- สรุป OT รายเดือน (HR / ผู้ดูแลระบบ) -->
+  <div id="otReportView" class="hidden">
+    <div class="card">
+      <div class="top">
+        <h1>สรุป OT รายเดือน</h1>
+        <button class="link" id="otReportBack">← กลับ</button>
+      </div>
+      <input type="month" id="otReportMonth">
+      <button id="otReportCsv" class="gray" style="margin-top:8px">⬇ ดาวน์โหลด CSV</button>
+      <div id="otReportMsg"></div>
+    </div>
+    <div class="card"><div id="otReportBox"></div></div>
   </div>
 
   <div id="loading" class="card"><div class="muted" style="text-align:center">กำลังโหลด...</div></div>
@@ -207,7 +256,21 @@
     <input type="date" id="mStart">
     <div class="muted">วันเกิด</div>
     <input type="date" id="mBirth">
+    <div class="muted" style="margin-top:6px">ประเภทพนักงาน</div>
+    <select id="mType">
+      <option value="">— เลือกประเภท —</option>
+      <option value="monthly">รายเดือน</option>
+      <option value="daily">รายวัน</option>
+      <option value="contract">สัญญาจ้าง</option>
+    </select>
+    <div id="mContractWrap" class="hidden">
+      <div class="muted">วันเริ่มสัญญาจ้าง</div>
+      <input type="date" id="mCStart">
+      <div class="muted">วันสิ้นสุดสัญญาจ้าง</div>
+      <input type="date" id="mCEnd">
+    </div>
     <input type="text" id="mSalary" inputmode="decimal" placeholder="เงินเดือน (บาท)" autocomplete="off">
+    <div class="muted" id="mSalaryHint"></div>
     <div class="muted" style="margin-top:6px">หัวหน้างาน (ผู้อนุมัติการลา)</div>
     <select id="mSup"></select>
     <div id="mRoleWrap">
@@ -278,7 +341,7 @@ async function call(payload) {
 }
 
 function show(id) {
-  ['loading','loginView','mainView','manageView','leaveView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  ['loading','loginView','mainView','manageView','leaveView','otView','otReportView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
 }
 function setMsg(el, text, kind) {
   el.innerHTML = '';
@@ -709,6 +772,179 @@ $('lvSubmit').onclick = async () => {
   finally { $('lvSubmit').disabled = false; }
 };
 
+/* ---------- ขอทำ OT ---------- */
+function otTab(name) {
+  [['New','otPaneNew','otTabNew'],['Mine','otPaneMine','otTabMine'],['Appr','otPaneAppr','otTabAppr']].forEach(a => {
+    $(a[1]).classList.toggle('hidden', a[0] !== name);
+    $(a[2]).className = a[0] === name ? 'primary' : 'gray';
+  });
+}
+$('otTabNew').onclick = () => otTab('New');
+$('otTabMine').onclick = () => otTab('Mine');
+$('otTabAppr').onclick = () => otTab('Appr');
+$('otBack').onclick = () => { loadStatus().catch(() => show('mainView')); };
+$('otBtn').onclick = async () => { show('otView'); otTab('New'); setMsg($('otMsg'), ''); await loadOt(); };
+function otCalc() {
+  const a = $('otStart').value, b = $('otEnd').value;
+  if (!a || !b) { $('otHours').textContent = ''; return; }
+  const m = (+b.slice(0,2))*60 + (+b.slice(3,5)) - (+a.slice(0,2))*60 - (+a.slice(3,5));
+  $('otHours').textContent = m > 0 ? 'รวม ' + (Math.round(m/60*100)/100) + ' ชั่วโมง' : 'เวลาสิ้นสุดต้องหลังเวลาเริ่ม';
+}
+$('otStart').onchange = $('otEnd').onchange = otCalc;
+
+async function loadOt() {
+  try {
+    const r = await call({ action:'otOverview' });
+    $('otSup').textContent = r.supervisor ? 'ผู้อนุมัติ: ' + r.supervisor.name + ' (' + r.supervisor.code + ')' : '⚠ ยังไม่ได้ระบุหัวหน้างาน กรุณาติดต่อ HR';
+    $('otSum').textContent = 'เดือนนี้: อนุมัติแล้ว ' + r.monthApproved + ' ชม.' + (r.monthPending ? ' · รออนุมัติ ' + r.monthPending + ' ชม.' : '') + ' · ทำจริงตามเวลาลงเวลา ' + r.monthVerified + ' ชม.' + (r.monthAmount ? ' · ค่า OT ที่คำนวณแล้ว ' + Number(r.monthAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' ฿' : '');
+    if (!$('otDate').value) $('otDate').value = r.today;
+    otCalc();
+    renderOtMine(r.mine);
+    $('otTabAppr').classList.toggle('hidden', !r.canApprove);
+    $('otApprCount').textContent = r.approvals.length ? '(' + r.approvals.length + ')' : '';
+    renderOtAppr(r.approvals);
+  } catch (e) {
+    if (e.code === 'AUTH') return;
+    setMsg($('otMsg'), e.message + ' (หากเพิ่งอัปเดต ตรวจว่า Deploy Apps Script เวอร์ชันใหม่แล้ว)', 'err');
+  }
+}
+
+function otCheckLine(r) {
+  const c = r.check;
+  if (!c) return null;
+  const el = document.createElement('div');
+  const ok = c.state === 'full', bad = c.state === 'partial' || c.state === 'none' || c.state === 'noout' || c.state === 'noatt';
+  el.style.cssText = 'font-size:13px;margin-top:4px;font-weight:600;color:' + (ok ? '#15803d' : (bad ? '#b4232a' : '#6b7280'));
+  let t = (ok ? '✔ ' : (bad ? '⚠ ' : '… ')) + c.text;
+  if (c.actualIn || c.actualOut) t += ' · ลงเวลาจริง ' + (c.actualIn || '-') + ' - ' + (c.actualOut || '-');
+  if (c.state === 'full' || c.state === 'partial' || c.state === 'none') t += ' · OT จริง ' + c.actualHours + '/' + r.hours + ' ชม.';
+  if (c.saved) t += ' · 🔒 บันทึกแล้ว (ใช้คิดเงิน ' + c.actualHours + ' ชม.)';
+  if (r.pay) t += ' · ' + r.pay.dayKind + ' ' + r.pay.mult + ' = ' + Number(r.pay.amount).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' ฿';
+  el.textContent = t;
+  return el;
+}
+
+function renderOtMine(list) {
+  const box = $('otMine');
+  box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="muted">ยังไม่มีคำขอ OT</div>'; return; }
+  list.forEach(r => {
+    const d = document.createElement('div'); d.className = 'emp';
+    const left = document.createElement('div');
+    const n = document.createElement('div'); n.className = 'nm'; n.textContent = thDate(r.date) + ' · ' + r.start + '-' + r.end + ' (' + r.hours + ' ชม.)';
+    const m = document.createElement('div'); m.className = 'muted'; m.textContent = r.reason;
+    left.append(n, m);
+    const cl = otCheckLine(r); if (cl) left.appendChild(cl);
+    if (r.note) { const o = document.createElement('div'); o.className = 'muted'; o.textContent = 'หมายเหตุ: ' + r.note; left.appendChild(o); }
+    const right = document.createElement('div'); right.className = 'badges';
+    addBadge(right, r.statusLabel, r.status === 'approved' ? 'hr' : (r.status === 'rejected' ? 'off' : ''));
+    if (r.status === 'pending') {
+      const x = document.createElement('button'); x.className = 'link'; x.textContent = 'ยกเลิก';
+      x.onclick = async () => {
+        if (!confirm('ยกเลิกคำขอ OT นี้?')) return;
+        try { await call({ action:'otCancel', id:r.id }); await loadOt(); } catch (e) { setMsg($('otMsg'), e.message, 'err'); }
+      };
+      right.appendChild(x);
+    }
+    d.append(left, right); box.appendChild(d);
+  });
+}
+
+function renderOtAppr(list) {
+  const box = $('otAppr');
+  box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="muted">ไม่มีคำขอ OT รออนุมัติ</div>'; return; }
+  list.forEach(r => {
+    const d = document.createElement('div'); d.style.cssText = 'padding:10px 0;border-bottom:1px solid #e5e7eb';
+    const n = document.createElement('div'); n.className = 'nm'; n.textContent = r.name + ' (' + r.code + ')';
+    const m = document.createElement('div'); m.textContent = thDate(r.date) + ' · ' + r.start + '-' + r.end + ' (' + r.hours + ' ชม.)';
+    const rs = document.createElement('div'); rs.className = 'muted'; rs.textContent = 'เหตุผล: ' + r.reason;
+    const note = document.createElement('input'); note.type = 'text'; note.maxLength = 200; note.placeholder = 'หมายเหตุ (จำเป็นเมื่อไม่อนุมัติ)';
+    const ok = document.createElement('button'); ok.className = 'primary'; ok.textContent = '✔ อนุมัติ';
+    const no = document.createElement('button'); no.className = 'danger'; no.style.marginTop = '8px'; no.textContent = '✖ ไม่อนุมัติ';
+    const act = async dec => {
+      ok.disabled = no.disabled = true;
+      try { await call({ action:'otDecide', id:r.id, decision:dec, note:note.value.trim() }); await loadOt(); }
+      catch (e) { setMsg($('otMsg'), e.message, 'err'); ok.disabled = no.disabled = false; }
+    };
+    ok.onclick = () => act('approve'); no.onclick = () => act('reject');
+    d.append(n, m, rs);
+    const cl = otCheckLine(r); if (cl) d.appendChild(cl);
+    d.append(note, ok, no); box.appendChild(d);
+  });
+}
+
+$('otSubmit').onclick = async () => {
+  const body = { action:'otSubmit', date:$('otDate').value, start:$('otStart').value, end:$('otEnd').value, reason:$('otReason').value.trim() };
+  if (!body.date) return setMsg($('otMsg'), 'กรุณาเลือกวันที่', 'err');
+  if (!body.reason) return setMsg($('otMsg'), 'กรุณากรอกเหตุผล/งานที่ต้องทำ OT', 'err');
+  $('otSubmit').disabled = true;
+  setMsg($('otMsg'), '');
+  try {
+    const r = await call(body);
+    setMsg($('otMsg'), 'ส่งคำขอแล้ว (' + r.hours + ' ชม.) รอหัวหน้างานอนุมัติ', 'good');
+    $('otReason').value = '';
+    await loadOt();
+  } catch (e) { setMsg($('otMsg'), e.message, 'err'); }
+  finally { $('otSubmit').disabled = false; }
+};
+
+/* ---------- สรุป OT รายเดือน ---------- */
+const money = n => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const TYPE_TH = { 'รายเดือน':'รายเดือน', 'รายวัน':'รายวัน', 'สัญญาจ้าง':'สัญญาจ้าง' };
+$('otReportBtn').onclick = async () => {
+  show('otReportView');
+  if (!$('otReportMonth').value) $('otReportMonth').value = new Date().toISOString().slice(0, 7);
+  await loadOtReport();
+};
+$('otReportBack').onclick = () => { show('manageView'); };
+$('otReportMonth').onchange = loadOtReport;
+async function loadOtReport() {
+  const box = $('otReportBox');
+  box.innerHTML = '<div class="muted">กำลังโหลด...</div>';
+  setMsg($('otReportMsg'), '');
+  try {
+    const r = await call({ action:'otReport', month:$('otReportMonth').value });
+    state.otReport = r;
+    box.innerHTML = '';
+    if (r.waiting) setMsg($('otReportMsg'), 'มี ' + r.waiting + ' รายการที่อนุมัติแล้วแต่ยังไม่ถึงวันสรุป (ยังไม่นับในรายงาน)', '');
+    if (!r.rows.length) { box.innerHTML = '<div class="muted">ยังไม่มี OT ที่บันทึกผลในเดือนนี้</div>'; return; }
+    let tot = 0, hrs = 0;
+    r.rows.forEach(x => {
+      const d = document.createElement('div'); d.className = 'emp';
+      const left = document.createElement('div');
+      const n = document.createElement('div'); n.className = 'nm'; n.textContent = x.name + ' (' + x.code + ')';
+      const m = document.createElement('div'); m.className = 'muted';
+      m.textContent = (x.empType || 'ยังไม่ระบุประเภท') + ' · ' + x.count + ' รายการ · ' + x.hours + ' ชม.' + (x.noPay ? ' · ⚠ ' + x.noPay + ' รายการยังไม่คิดเงิน (ขาดประเภท/ฐานค่าจ้าง)' : '');
+      left.append(n, m);
+      const right = document.createElement('div'); right.className = 'nm';
+      right.textContent = x.amount === null ? '—' : money(x.amount) + ' ฿';
+      d.append(left, right); box.appendChild(d);
+      hrs += x.hours; if (x.amount !== null) tot += x.amount;
+    });
+    const t = document.createElement('div'); t.className = 'row'; t.style.marginTop = '10px';
+    const a = document.createElement('b'); a.textContent = 'รวม ' + Math.round(hrs * 100) / 100 + ' ชม.';
+    const b = document.createElement('b'); b.textContent = money(tot) + ' ฿';
+    t.append(a, b); box.appendChild(t);
+  } catch (e) {
+    if (e.code === 'AUTH') return;
+    box.innerHTML = '';
+    setMsg($('otReportMsg'), e.message, 'err');
+  }
+}
+$('otReportCsv').onclick = () => {
+  const r = state.otReport;
+  if (!r || !r.rows.length) return setMsg($('otReportMsg'), 'ไม่มีข้อมูลให้ดาวน์โหลด', 'err');
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const lines = [['รหัส','ชื่อ','ประเภท','จำนวนรายการ','ชั่วโมง OT จริง','ค่า OT (บาท)'].map(q).join(',')];
+  r.rows.forEach(x => lines.push([x.code, x.name, x.empType, x.count, x.hours, x.amount === null ? '' : x.amount].map(q).join(',')));
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'ot-' + r.month + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
 $('manageBtn').onclick = async () => {
   show('manageView');
   setMsg($('manageMsg'), '');
@@ -753,6 +989,8 @@ function renderList() {
     left.append(nm, cd);
     const right = document.createElement('div'); right.className = 'badges';
     if (e.role !== 'employee') addBadge(right, ROLE_LABEL[e.role], e.role);
+    if (e.empType) addBadge(right, {monthly:'รายเดือน', daily:'รายวัน', contract:'สัญญาจ้าง'}[e.empType], '');
+    if (e.contractExpired) addBadge(right, 'สัญญาหมดอายุ', 'off');
     if (e.disabled) addBadge(right, 'ระงับ', 'off');
     if (!e.hasPin) addBadge(right, 'ยังไม่ตั้ง PIN', '');
     row.append(left, right);
@@ -776,6 +1014,15 @@ function fillPositions(cur) {
   sel.value = cur || '';
 }
 
+
+function syncTypeUi() {
+  const t = $('mType').value;
+  $('mContractWrap').classList.toggle('hidden', t !== 'contract');
+  $('mSalary').placeholder = t === 'daily' ? 'ค่าแรงรายวัน (บาท/วัน)' : 'เงินเดือน (บาท/เดือน)';
+  $('mSalaryHint').textContent = t === 'daily' ? 'ฐานคิด OT = ค่าแรงรายวัน ÷ 8 ÷ 60 บาท/นาที'
+    : (t ? 'ฐานคิด OT = เงินเดือน ÷ 30 ÷ 8 ÷ 60 บาท/นาที' : 'เลือกประเภทพนักงานเพื่อให้คำนวณค่า OT ได้');
+}
+$('mType').onchange = syncTypeUi;
 
 function fillSupervisors(cur, selfCode) {
   const sel = $('mSup');
@@ -805,6 +1052,10 @@ function openModal(mode, e) {
   $('mStart').value = isCreate ? '' : dateVal(e.startDate);
   $('mBirth').value = isCreate ? '' : dateVal(e.birthDate);
   $('mSalary').value = isCreate ? '' : (e.salary || '');
+  $('mType').value = isCreate ? '' : (e.empType || '');
+  $('mCStart').value = isCreate ? '' : dateVal(e.contractStart);
+  $('mCEnd').value = isCreate ? '' : dateVal(e.contractEnd);
+  syncTypeUi();
   $('mRole').value = isCreate ? 'employee' : e.role;
   $('mRoleWrap').classList.toggle('hidden', !(isAdmin && !isRootT && !isSelf));
   $('mOffWrap').classList.toggle('hidden', isCreate || isRootT || isSelf);
@@ -833,8 +1084,13 @@ $('mSave').onclick = async () => {
   const prof = {
     position: $('mPos').value.trim(), startDate: $('mStart').value,
     birthDate: $('mBirth').value, salary: $('mSalary').value.trim(),
-    supervisor: $('mSup').value
+    supervisor: $('mSup').value, empType: $('mType').value,
+    contractStart: $('mType').value === 'contract' ? $('mCStart').value : '',
+    contractEnd: $('mType').value === 'contract' ? $('mCEnd').value : ''
   };
+  if (prof.empType === 'contract' && (!prof.contractStart || !prof.contractEnd)) {
+    return setMsg($('mMsg'), 'สัญญาจ้างต้องระบุวันเริ่มต้นและวันสิ้นสุดสัญญา', 'err');
+  }
 
   setModalBusy(true);
   setMsg($('mMsg'), '');
