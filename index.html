@@ -53,6 +53,14 @@
   .emp.dim { opacity:.6; }
   .emp .nm { font-weight:600; font-size:16px; }
   .badges { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .tiles { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px; }
+  .tile { background:#f4f6f8; border-radius:12px; padding:10px; }
+  .tile.wide { grid-column:1/-1; }
+  .tile b { display:block; font-size:22px; line-height:1.2; }
+  .tile span { font-size:12px; color:var(--muted); }
+  .dsec h2 { font-size:16px; margin:0; }
+  .plist { font-size:14px; margin-top:8px; }
+  .plist div { padding:2px 0; }
   .badge { font-size:12px; padding:2px 8px; border-radius:999px; background:#eef2f7; color:var(--muted); font-weight:600; white-space:nowrap; }
   .badge.admin { background:#ede9fe; color:#5b21b6; }
   .badge.hr { background:#dbeafe; color:#1d4ed8; }
@@ -126,6 +134,8 @@
       <div class="muted" style="margin-bottom:6px">บันทึกวันนี้</div>
       <div id="todayLog"><div class="muted">ยังไม่มีบันทึก</div></div>
     </div>
+
+    <div id="dashBox"></div>
   </div>
 
   <!-- ขออนุมัติลา -->
@@ -225,6 +235,7 @@
         <button class="link" id="otReportBack">← กลับ</button>
       </div>
       <input type="month" id="otReportMonth">
+      <div class="muted" id="otReportCycle"></div>
       <button id="otReportCsv" class="gray" style="margin-top:8px">⬇ ดาวน์โหลด CSV</button>
       <div id="otReportMsg"></div>
     </div>
@@ -384,6 +395,7 @@ async function loadStatus() {
     days: ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'], upcoming: [], start: '08:00', end: '17:00' };
   applySchedule(sch);
   show('mainView');
+  loadDashboard();
   if (!state.clockStarted) { state.clockStarted = true; startClock(); }
   if (sch.required && !state.gpsStarted) { state.gpsStarted = true; startGps(); }
 }
@@ -648,6 +660,84 @@ async function refreshToday() {
 }
 
 /* ================= จัดการพนักงาน ================= */
+/* ---------- Dashboard ---------- */
+const TH_MON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function thShort(s) { const p = s.split('-').map(Number); return p[2] + ' ' + TH_MON[p[1] - 1]; }
+function cycleText(c) { return 'รอบเงินเดือน ' + thShort(c.start) + ' – ' + thShort(c.end) + ' ' + (Number(c.end.slice(0, 4)) + 543); }
+function tile(label, value, sub) {
+  const t = document.createElement('div'); t.className = 'tile';
+  const b = document.createElement('b'); b.textContent = value;
+  const l = document.createElement('span'); l.textContent = label;
+  t.append(b, l);
+  if (sub) { const u = document.createElement('div'); u.className = 'muted'; u.style.fontSize = '12px'; u.textContent = sub; t.appendChild(u); }
+  return t;
+}
+function plist(title, items, fmt) {
+  const w = document.createElement('div'); w.className = 'plist';
+  const h = document.createElement('div'); h.className = 'muted'; h.textContent = title;
+  w.appendChild(h);
+  if (!items.length) { const d = document.createElement('div'); d.textContent = '— ไม่มี —'; w.appendChild(d); }
+  items.forEach(i => { const d = document.createElement('div'); d.textContent = fmt(i); w.appendChild(d); });
+  return w;
+}
+function pctText(g) { return g.otPercent === null ? '—' : g.otPercent + '%'; }
+function groupSection(title, g, who, cyc) {
+  const sec = document.createElement('div'); sec.className = 'card dsec';
+  const h = document.createElement('h2'); h.textContent = title; sec.appendChild(h);
+  const tl = document.createElement('div'); tl.className = 'tiles';
+  tl.append(
+    tile(who + 'ทั้งหมด', g.total + ' คน'),
+    tile('มาทำงานวันนี้', g.present + ' คน', 'ต้องมาตามตาราง ' + g.expected + ' คน'),
+    tile('ลา (วันนี้)', g.onLeave.length + ' คน'),
+    tile('สาย (วันนี้)', g.late.length + ' คน'),
+    tile('% OT / เงินเดือน', pctText(g), 'OT ' + g.otHours + ' ชม. · ' + cycleText(cyc))
+  );
+  tl.lastChild.classList.add('wide');
+  sec.appendChild(tl);
+  sec.appendChild(plist('ลา', g.onLeave, x => x.name + ' (' + x.code + ') · ' + x.type + (x.half ? ' ' + x.half : '')));
+  sec.appendChild(plist('สาย', g.late, x => x.name + ' (' + x.code + ') · สาย ' + x.minutes + ' นาที'));
+  const n = document.createElement('div'); n.className = 'muted'; n.style.cssText = 'font-size:12px;margin-top:8px';
+  n.textContent = '% OT = ค่า OT ที่บันทึกแล้วในรอบ ÷ เงินเดือน (รายวัน = ค่าแรง × วันที่มาทำงาน)' +
+    (g.unknownPay ? ' · ยังไม่รวม ' + g.unknownPay + ' คนที่ไม่ได้ระบุประเภท/ค่าจ้าง' : '');
+  sec.appendChild(n);
+  return sec;
+}
+function meSection(d) {
+  const sec = document.createElement('div'); sec.className = 'card dsec';
+  const h = document.createElement('h2'); h.textContent = 'สรุปของฉัน'; sec.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'muted'; sub.textContent = cycleText(d.cycle); sec.appendChild(sub);
+  const b = d.me.balances, tl = document.createElement('div'); tl.className = 'tiles';
+  ['vacation', 'sick', 'personal'].forEach(k => {
+    const x = b[k];
+    let sv = x.remaining + ' / ' + x.entitled + ' วัน', note = x.pending ? 'รออนุมัติ ' + x.pending + ' วัน' : '';
+    if (k === 'vacation' && !x.eligible) { sv = '—'; note = x.eligibleFrom ? 'ใช้ได้ตั้งแต่ ' + thDate(x.eligibleFrom) : 'ยังไม่มีวันเริ่มงาน'; }
+    tl.appendChild(tile(x.label + 'คงเหลือ ปี ' + (d.me.year + 543), sv, note));
+  });
+  tl.append(
+    tile('เวลาทำ OT ในรอบนี้', d.me.ot.verified + ' ชม.', 'อนุมัติ ' + d.me.ot.approved + ' ชม.' + (d.me.ot.pending ? ' · รออนุมัติ ' + d.me.ot.pending : '')),
+    tile('เข้างานสายในรอบนี้', d.me.late.minutes + ' นาที', d.me.late.days + ' วัน')
+  );
+  sec.appendChild(tl);
+  return sec;
+}
+async function loadDashboard() {
+  const box = $('dashBox');
+  try {
+    const d = await call({ action:'dashboard' });
+    box.innerHTML = '';
+    if (d.org) box.appendChild(groupSection('ภาพรวมบริษัท', d.org, 'พนักงาน', d.cycle));
+    if (d.team) box.appendChild(groupSection('ทีมของฉัน', d.team, 'ลูกน้อง', d.cycle));
+    box.appendChild(meSection(d));
+  } catch (e) {
+    if (e.code === 'AUTH') return;
+    box.innerHTML = '';
+    const c = document.createElement('div'); c.className = 'card';
+    const m = document.createElement('div'); m.className = 'muted';
+    m.textContent = 'โหลดสรุปไม่ได้: ' + e.message + ' (หากเพิ่งอัปเดต ตรวจว่า Deploy Apps Script เวอร์ชันใหม่แล้ว)';
+    c.appendChild(m); box.appendChild(c);
+  }
+}
+
 /* ---------- ขออนุมัติลา ---------- */
 const LV_TH = { vacation:'ลาพักร้อน', sick:'ลาป่วย', personal:'ลากิจ' };
 function thDate(s) {
@@ -796,7 +886,7 @@ async function loadOt() {
   try {
     const r = await call({ action:'otOverview' });
     $('otSup').textContent = r.supervisor ? 'ผู้อนุมัติ: ' + r.supervisor.name + ' (' + r.supervisor.code + ')' : '⚠ ยังไม่ได้ระบุหัวหน้างาน กรุณาติดต่อ HR';
-    $('otSum').textContent = 'เดือนนี้: อนุมัติแล้ว ' + r.monthApproved + ' ชม.' + (r.monthPending ? ' · รออนุมัติ ' + r.monthPending + ' ชม.' : '') + ' · ทำจริงตามเวลาลงเวลา ' + r.monthVerified + ' ชม.' + (r.monthAmount ? ' · ค่า OT ที่คำนวณแล้ว ' + Number(r.monthAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' ฿' : '');
+    $('otSum').textContent = cycleText(r.cycle) + ': อนุมัติแล้ว ' + r.monthApproved + ' ชม.' + (r.monthPending ? ' · รออนุมัติ ' + r.monthPending + ' ชม.' : '') + ' · ทำจริงตามเวลาลงเวลา ' + r.monthVerified + ' ชม.' + (r.monthAmount ? ' · ค่า OT ที่คำนวณแล้ว ' + Number(r.monthAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' ฿' : '');
     if (!$('otDate').value) $('otDate').value = r.today;
     otCalc();
     renderOtMine(r.mine);
@@ -894,7 +984,7 @@ const money = n => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2,
 const TYPE_TH = { 'รายเดือน':'รายเดือน', 'รายวัน':'รายวัน', 'สัญญาจ้าง':'สัญญาจ้าง' };
 $('otReportBtn').onclick = async () => {
   show('otReportView');
-  if (!$('otReportMonth').value) $('otReportMonth').value = new Date().toISOString().slice(0, 7);
+  $('otReportMonth').value = '';
   await loadOtReport();
 };
 $('otReportBack').onclick = () => { show('manageView'); };
@@ -906,9 +996,11 @@ async function loadOtReport() {
   try {
     const r = await call({ action:'otReport', month:$('otReportMonth').value });
     state.otReport = r;
+    $('otReportMonth').value = r.cycle.key;
+    $('otReportCycle').textContent = cycleText(r.cycle) + ' (เลือกเดือนที่รอบเริ่มต้น)';
     box.innerHTML = '';
     if (r.waiting) setMsg($('otReportMsg'), 'มี ' + r.waiting + ' รายการที่อนุมัติแล้วแต่ยังไม่ถึงวันสรุป (ยังไม่นับในรายงาน)', '');
-    if (!r.rows.length) { box.innerHTML = '<div class="muted">ยังไม่มี OT ที่บันทึกผลในเดือนนี้</div>'; return; }
+    if (!r.rows.length) { box.innerHTML = '<div class="muted">ยังไม่มี OT ที่บันทึกผลในรอบนี้</div>'; return; }
     let tot = 0, hrs = 0;
     r.rows.forEach(x => {
       const d = document.createElement('div'); d.className = 'emp';
@@ -940,7 +1032,7 @@ $('otReportCsv').onclick = () => {
   r.rows.forEach(x => lines.push([x.code, x.name, x.empType, x.count, x.hours, x.amount === null ? '' : x.amount].map(q).join(',')));
   const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = 'ot-' + r.month + '.csv';
+  a.href = URL.createObjectURL(blob); a.download = 'ot-' + r.cycle.start + '_' + r.cycle.end + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 };
