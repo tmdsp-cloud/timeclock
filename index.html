@@ -146,7 +146,12 @@
   .menuBtn { display:none; }
   .col-a > .card:first-child { text-align:center; }
   @media (min-width:700px) { .navbar button { font-size:13px; } }
-  .logo .logoimg { height:40px; width:auto; background:#fff; border-radius:10px; padding:3px 8px; display:block; }
+  .logo .logoimg { height:30px; width:auto; max-width:96px; object-fit:contain; background:#fff; border-radius:10px; padding:5px 8px; display:block; box-sizing:content-box; }
+  .topbar .logo { flex:none; }
+  .viewsw { display:flex; gap:6px; background:#44454d; padding:5px; border-radius:16px; margin-bottom:12px; }
+  .viewsw button { flex:1; padding:9px 4px; font-size:14px; border-radius:12px; background:none; color:#c9ced6; font-weight:600; }
+  .viewsw button.on { background:#fff; color:var(--brand); }
+  .viewsw .vn { grid-column:1/-1; }
   .logo.big { flex-direction:column; align-items:center; gap:2px; margin-bottom:8px; }
   .logo.big span { color:var(--brand); font-size:22px; }
   .logofull { width:200px; max-width:70%; height:auto; display:block; }
@@ -157,12 +162,12 @@
 <div class="topbar hidden" id="topbar">
   <div class="logo"><img src="logo-mark.png" alt="Tmd" class="logoimg"></div>
   <div class="who"><span id="tbName">TMDSP_HR</span><small id="tbSub">TMDSP_HR</small></div>
-  <button class="round" id="tbOut" title="ออกจากระบบ" aria-label="ออกจากระบบ">⏻</button>
+  <button class="round" id="tbOut" title="ออกจากระบบ" aria-label="ออกจากระบบ"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
 </div>
 <nav class="navbar hidden" id="navbar">
   <button data-nav="home"><i>🏠</i>หน้าหลัก</button>
-  <button data-nav="leave"><i>📝</i>ขอลา<span class="dot hidden" id="navDot"></span></button>
-  <button data-nav="ot"><i>⏱</i>OT</button>
+  <button data-nav="leave" id="navLeave"><i>📝</i>ขอลา<span class="dot hidden" id="navDot"></span></button>
+  <button data-nav="ot" id="navOt"><i>⏱</i>OT</button>
   <button data-nav="pay"><i>💵</i>เงินเดือน</button>
   <button data-nav="manage" id="navManage"><i>👥</i>จัดการ</button>
 </nav>
@@ -511,8 +516,7 @@ async function loadStatus() {
   state.me = r.employee;
   $('empName').textContent = r.employee.name;
   $('empCode2').textContent = 'รหัส ' + r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
-  $('manageBtn').classList.toggle('hidden', !(r.employee.role === 'hr' || r.employee.role === 'admin'));
-  $('navManage').classList.toggle('hidden', !(r.employee.role === 'hr' || r.employee.role === 'admin'));
+  applyViewNav();
   $('tbName').textContent = r.employee.name;
   $('tbSub').textContent = 'TMDSP_HR · ' + r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
   state.nextType = r.nextType;
@@ -1025,23 +1029,24 @@ function plist(title, items, fmt) {
   return w;
 }
 function pctText(g) { return g.otPercent === null ? '—' : g.otPercent + '%'; }
-function groupSection(title, g, who, cyc) {
+function groupSection(title, g, who, cyc, opt) {
+  opt = opt || {};
   const sec = document.createElement('div'); sec.className = 'card dsec';
   const h = document.createElement('h2'); h.textContent = title; sec.appendChild(h);
   const tl = document.createElement('div'); tl.className = 'tiles';
   tl.append(
     tile(who + 'ทั้งหมด', g.total + ' คน'),
     tile('มาทำงานวันนี้', g.present + ' คน', 'ต้องมาตามตาราง ' + g.expected + ' คน'),
-    tile('ลา (วันนี้)', g.onLeave.length + ' คน'),
+    ...(opt.noLeave ? [] : [tile('ลา (วันนี้)', g.onLeave.length + ' คน')]),
     tile('สาย (วันนี้)', g.late.length + ' คน'),
-    tile('% OT / เงินเดือน', pctText(g), 'OT ' + g.otHours + ' ชม. · ' + cycleText(cyc))
+    ...(opt.noLeave ? [] : [tile('% OT / เงินเดือน', pctText(g), 'OT ' + g.otHours + ' ชม. · ' + cycleText(cyc))])
   );
-  tl.lastChild.classList.add('wide');
+  if (!opt.noLeave) tl.lastChild.classList.add('wide');
   sec.appendChild(tl);
-  sec.appendChild(plist('ลา', g.onLeave, x => x.name + ' (' + x.code + ') · ' + x.type + (x.half ? ' ' + x.half : '')));
+  if (!opt.noLeave) sec.appendChild(plist('ลา', g.onLeave, x => x.name + ' (' + x.code + ') · ' + x.type + (x.half ? ' ' + x.half : '')));
   sec.appendChild(plist('สาย', g.late, x => x.name + ' (' + x.code + ') · สาย ' + x.minutes + ' นาที'));
   const n = document.createElement('div'); n.className = 'muted'; n.style.cssText = 'font-size:12px;margin-top:8px';
-  n.textContent = '% OT = ค่า OT ที่บันทึกแล้วในรอบ ÷ เงินเดือน (รายวัน = ค่าแรง × วันที่มาทำงาน)' +
+  if (!opt.noLeave) n.textContent = '% OT = ค่า OT ที่บันทึกแล้วในรอบ ÷ เงินเดือน (รายวัน = ค่าแรง × วันที่มาทำงาน)' +
     (g.unknownPay ? ' · ยังไม่รวม ' + g.unknownPay + ' คนที่ไม่ได้ระบุประเภท/ค่าจ้าง' : '');
   sec.appendChild(n);
   return sec;
@@ -1064,14 +1069,73 @@ function meSection(d) {
   sec.appendChild(tl);
   return sec;
 }
+const VIEW_LABEL = { manager:'ผู้จัดการ', hr:'HR', employee:'พนักงาน' };
+function isApprover() { const m = state.me || {}; return m.role === 'admin' || m.position === 'Manager (ผู้ดูแลระบบ)'; }
+function viewMode() {
+  const m = state.me || {};
+  if (m.role === 'admin') { const v = store.get('viewAs'); return VIEW_LABEL[v] ? v : 'manager'; }
+  if (isApprover()) return 'manager';
+  if (m.role === 'hr') return 'hr';
+  return 'employee';
+}
+function applyViewNav() {
+  const v = viewMode(), m = state.me || {};
+  const canManage = (m.role === 'hr' || m.role === 'admin') && v !== 'employee';
+  $('navManage').classList.toggle('hidden', !canManage);
+  $('manageBtn').classList.toggle('hidden', !canManage);
+  // ผู้จัดการไม่ต้องลา / ไม่ต้องขอ OT
+  $('navLeave').classList.toggle('hidden', v === 'manager');
+  $('navOt').classList.toggle('hidden', v === 'manager');
+}
+function viewSwitcher() {
+  const w = document.createElement('div'); w.className = 'viewsw';
+  ['manager', 'hr', 'employee'].forEach(k => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = VIEW_LABEL[k];
+    b.className = k === viewMode() ? 'on' : '';
+    b.onclick = () => { store.set('viewAs', k); loadDashboard(); };
+    w.appendChild(b);
+  });
+  return w;
+}
+function financeSection(f, cyc) {
+  const sec = document.createElement('div'); sec.className = 'card dsec';
+  const h = document.createElement('h2'); h.textContent = 'เงินเดือนและ OT รวมของรอบ'; sec.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'muted'; sub.textContent = cycleText(cyc) + ' · ' + f.statusLabel + (f.official ? '' : ' (ตัวเลขยังไม่เป็นทางการ)'); sec.appendChild(sub);
+  const fm = n => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ฿';
+  const tl = document.createElement('div'); tl.className = 'tiles';
+  tl.append(
+    tile('เงินเดือนรวม (ก่อนหัก)', fm(f.gross), f.count + ' คน' + (f.commission ? ' · รวมคอม ' + fm(f.commission) : '')),
+    tile('จ่ายสุทธิรวม', fm(f.net), 'ประกันสังคมรวม ' + fm(f.ss)),
+    tile('OT รวม', fm(f.otAmount), f.otHours + ' ชม.')
+  );
+  Array.from(tl.children).forEach(c => c.classList.add('wide'));
+  sec.appendChild(tl);
+  return sec;
+}
 async function loadDashboard() {
   const box = $('dashBox');
   try {
     const d = await call({ action:'dashboard' });
+    const v = viewMode();
     box.innerHTML = '';
-    if (d.org) box.appendChild(groupSection('ภาพรวมบริษัท', d.org, 'พนักงาน', d.cycle));
-    if (d.team) box.appendChild(groupSection('ทีมของฉัน', d.team, 'ลูกน้อง', d.cycle));
-    box.appendChild(meSection(d));
+    if (state.me && state.me.role === 'admin') {
+      box.appendChild(viewSwitcher());
+      const n = document.createElement('div'); n.className = 'muted'; n.style.cssText = 'color:#aeb4bf;font-size:12px;margin:-6px 4px 12px';
+      n.textContent = 'สลับมุมมองเพื่อตรวจสอบการแสดงผลเท่านั้น สิทธิ์จริงยังเป็นของผู้ดูแลระบบ';
+      box.appendChild(n);
+    }
+    applyViewNav();
+    if (v === 'manager') {
+      if (d.finance) box.appendChild(financeSection(d.finance, d.cycle));
+      if (d.org) box.appendChild(groupSection('ภาพรวมบริษัท', d.org, 'พนักงาน', d.cycle, { noLeave: true }));
+    } else if (v === 'hr') {
+      if (d.org) box.appendChild(groupSection('ภาพรวมบริษัท', d.org, 'พนักงาน', d.cycle));
+      if (d.team) box.appendChild(groupSection('ทีมของฉัน', d.team, 'ลูกน้อง', d.cycle));
+      box.appendChild(meSection(d));
+    } else {
+      if (d.team) box.appendChild(groupSection('ทีมของฉัน', d.team, 'ลูกน้อง', d.cycle));
+      box.appendChild(meSection(d));
+    }
   } catch (e) {
     if (e.code === 'AUTH') return;
     box.innerHTML = '';
