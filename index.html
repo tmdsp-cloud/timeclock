@@ -142,7 +142,7 @@
   .navbar button { flex:1; background:none; color:#c9ced6; border-radius:22px; padding:8px 2px; font-size:12px; font-weight:500; display:flex; flex-direction:column; align-items:center; gap:3px; position:relative; }
   .navbar button i { font-style:normal; font-size:22px; line-height:1; }
   .navbar button.on { background:rgba(255,255,255,.22); color:#8fe0b9; font-weight:700; }
-  .navbar .dot { position:absolute; top:4px; right:22%; width:10px; height:10px; border-radius:50%; background:var(--red); }
+  .navbar .dot { position:absolute; top:2px; right:18%; min-width:18px; height:18px; padding:0 4px; border-radius:9px; background:var(--red); color:#fff; font-size:11px; font-weight:700; line-height:18px; text-align:center; }
   .menuBtn { display:none; }
   .col-a > .card:first-child { text-align:center; }
   @media (min-width:700px) { .navbar button { font-size:13px; } }
@@ -167,8 +167,8 @@
 <nav class="navbar hidden" id="navbar">
   <button data-nav="home"><i>🏠</i>หน้าหลัก</button>
   <button data-nav="leave" id="navLeave"><i>📝</i>ขอลา<span class="dot hidden" id="navDot"></span></button>
-  <button data-nav="ot" id="navOt"><i>⏱</i>OT</button>
-  <button data-nav="pay"><i>💵</i>เงินเดือน</button>
+  <button data-nav="ot" id="navOt"><i>⏱</i>OT<span class="dot hidden" id="navDotOt"></span></button>
+  <button data-nav="pay"><i>💵</i>เงินเดือน<span class="dot hidden" id="navDotPay"></span></button>
   <button data-nav="manage" id="navManage"><i>👥</i>จัดการ</button>
 </nav>
 <div class="wrap">
@@ -523,7 +523,10 @@ async function loadStatus() {
   const ap = Number(r.approvalsPending) || 0;
   $('leaveBadge').textContent = ap + ' รออนุมัติ';
   $('leaveBadge').classList.toggle('hidden', !ap);
-  $('navDot').classList.toggle('hidden', !ap);
+  const pc = r.pending || { leave: ap, ot: 0, pay: 0 };
+  [['navDot', pc.leave], ['navDotOt', pc.ot], ['navDotPay', pc.pay]].forEach(x => {
+    const d = $(x[0]); d.textContent = x[1] > 9 ? '9+' : (x[1] || ''); d.classList.toggle('hidden', !x[1]);
+  });
   renderToday(r.today);
   updateButton();
   // ถ้าหลังบ้านยังเป็นเวอร์ชันเก่า (ไม่ส่ง schedule มา) ใช้ค่ามาตรฐานไปก่อน จะได้ยังล็อกอินและลงเวลาได้
@@ -1039,14 +1042,14 @@ function groupSection(title, g, who, cyc, opt) {
     tile('มาทำงานวันนี้', g.present + ' คน', 'ต้องมาตามตาราง ' + g.expected + ' คน'),
     ...(opt.noLeave ? [] : [tile('ลา (วันนี้)', g.onLeave.length + ' คน')]),
     tile('สาย (วันนี้)', g.late.length + ' คน'),
-    ...(opt.noLeave ? [] : [tile('% OT / เงินเดือน', pctText(g), 'OT ' + g.otHours + ' ชม. · ' + cycleText(cyc))])
+    ...(opt.noOtPct ? [] : [tile('% OT / เงินเดือน', pctText(g), 'OT ' + g.otHours + ' ชม. · ' + cycleText(cyc))])
   );
-  if (!opt.noLeave) tl.lastChild.classList.add('wide');
+  if (!opt.noOtPct) tl.lastChild.classList.add('wide');
   sec.appendChild(tl);
   if (!opt.noLeave) sec.appendChild(plist('ลา', g.onLeave, x => x.name + ' (' + x.code + ') · ' + x.type + (x.half ? ' ' + x.half : '')));
   sec.appendChild(plist('สาย', g.late, x => x.name + ' (' + x.code + ') · สาย ' + x.minutes + ' นาที'));
   const n = document.createElement('div'); n.className = 'muted'; n.style.cssText = 'font-size:12px;margin-top:8px';
-  if (!opt.noLeave) n.textContent = '% OT = ค่า OT ที่บันทึกแล้วในรอบ ÷ เงินเดือน (รายวัน = ค่าแรง × วันที่มาทำงาน)' +
+  if (!opt.noOtPct) n.textContent = '% OT = ค่า OT ที่บันทึกแล้วในรอบ ÷ เงินเดือน (รายวัน = ค่าแรง × วันที่มาทำงาน)' +
     (g.unknownPay ? ' · ยังไม่รวม ' + g.unknownPay + ' คนที่ไม่ได้ระบุประเภท/ค่าจ้าง' : '');
   sec.appendChild(n);
   return sec;
@@ -1064,8 +1067,18 @@ function meSection(d) {
   });
   tl.append(
     tile('เวลาทำ OT ในรอบนี้', d.me.ot.verified + ' ชม.', 'อนุมัติ ' + d.me.ot.approved + ' ชม.' + (d.me.ot.pending ? ' · รออนุมัติ ' + d.me.ot.pending : '')),
-    tile('เข้างานสายในรอบนี้', d.me.late.minutes + ' นาที', d.me.late.days + ' วัน')
+    tile('เข้างานสายในรอบนี้', d.me.late.minutes + ' นาที', d.me.late.days + ' วัน'),
+    tile('ออกก่อนเวลาในรอบนี้', ((d.me.early || {}).minutes || 0) + ' นาที', ((d.me.early || {}).days || 0) + ' วัน')
   );
+  if (d.me.pay) {
+    const f = n => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ฿';
+    const p = d.me.pay;
+    const t = tile('เงินเดือนสุทธิ ณ ปัจจุบัน', f(p.net), 'รายได้รวม ' + f(p.gross) + ' · หักรวม ' + f(p.deductions + p.ss));
+    t.classList.add('wide'); tl.appendChild(t);
+    const w = document.createElement('div'); w.className = 'muted'; w.style.cssText = 'font-size:12px;margin-top:8px';
+    w.textContent = p.official ? 'ตัวเลขทางการ (ผู้จัดการอนุมัติแล้ว)' : 'ตัวเลขนี้ไม่เป็นทางการ จนกว่าผู้จัดการจะอนุมัติ';
+    sec.appendChild(tl); sec.appendChild(w); return sec;
+  }
   sec.appendChild(tl);
   return sec;
 }
@@ -1083,9 +1096,6 @@ function applyViewNav() {
   const canManage = (m.role === 'hr' || m.role === 'admin') && v !== 'employee';
   $('navManage').classList.toggle('hidden', !canManage);
   $('manageBtn').classList.toggle('hidden', !canManage);
-  // ผู้จัดการไม่ต้องลา / ไม่ต้องขอ OT
-  $('navLeave').classList.toggle('hidden', v === 'manager');
-  $('navOt').classList.toggle('hidden', v === 'manager');
 }
 function viewSwitcher() {
   const w = document.createElement('div'); w.className = 'viewsw';
