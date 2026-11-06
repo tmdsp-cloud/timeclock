@@ -831,7 +831,8 @@ function renderPayLine(l, box) {
   if (l.diligence) pRow(box, 'เบี้ยขยัน (ติดต่อกัน ' + l.dilStreak + ' เดือน)', '+' + m(l.diligence), 'plus');
   if (l.licenseAllow) pRow(box, 'เบี้ยพิเศษ (มีใบขับขี่รถยนต์)', '+' + m(l.licenseAllow), 'plus');
   pRow(box, 'รายได้รวม', m(l.gross), '', true);
-  if (l.type === 'สัญญาจ้าง') pRow(box, 'ประกันสังคม', 'ไม่หัก (สัญญาจ้าง)');
+  if (l.position === 'Manager (ผู้ดูแลระบบ)') pRow(box, 'ประกันสังคม', 'ไม่หัก (กรรมการบริษัท)');
+  else if (l.type === 'สัญญาจ้าง') pRow(box, 'ประกันสังคม', 'ไม่หัก (สัญญาจ้าง)');
   else pRow(box, 'หักประกันสังคม', '-' + m(l.ss), 'minus');
   if (l.lateMins || l.lateDed) pRow(box, 'หักมาสาย (' + l.lateMins + ' นาที)', '-' + m(l.lateDed), 'minus');
   if (l.earlyMins || l.earlyDed) pRow(box, 'หักออกก่อนเวลา (' + l.earlyMins + ' นาที)', '-' + m(l.earlyDed), 'minus');
@@ -1128,6 +1129,18 @@ function financeSection(f, cyc) {
   sec.appendChild(tl);
   return sec;
 }
+function myPayCard(d) {
+  const sec = document.createElement('div'); sec.className = 'card dsec';
+  const h = document.createElement('h2'); h.textContent = 'เงินเดือนของฉัน'; sec.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'muted'; sub.textContent = cycleText(d.cycle); sec.appendChild(sub);
+  const f = n => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ฿';
+  const p = d.me.pay, tl = document.createElement('div'); tl.className = 'tiles';
+  const t = tile('เงินเดือนสุทธิ ณ ปัจจุบัน', f(p.net), 'รายได้รวม ' + f(p.gross) + ' · หักรวม ' + f(p.deductions + p.ss));
+  t.classList.add('wide'); tl.appendChild(t); sec.appendChild(tl);
+  const w = document.createElement('div'); w.className = 'muted'; w.style.cssText = 'font-size:12px;margin-top:8px;color:' + (p.official ? '#15803d' : '#b45309');
+  w.textContent = p.official ? '✔ ตัวเลขทางการ (ผู้จัดการอนุมัติแล้ว)' : 'ตัวเลขนี้ไม่เป็นทางการ จนกว่าผู้จัดการจะอนุมัติ';
+  sec.appendChild(w); return sec;
+}
 async function loadDashboard(pre) {
   const box = $('dashBox');
   try {
@@ -1163,7 +1176,9 @@ function renderDash(d) {
     if (v === 'manager') {
       if (d.finance) box.appendChild(financeSection(d.finance, d.cycle));
       if (d.org) box.appendChild(groupSection('ภาพรวมบริษัท', d.org, 'พนักงาน', d.cycle, { noLeave: true }));
+      if (d.me && d.me.pay && d.me.pay.gross) box.appendChild(myPayCard(d));
     } else if (v === 'hr') {
+      if (d.finance) box.appendChild(financeSection(d.finance, d.cycle));
       if (d.org) box.appendChild(groupSection('ภาพรวมบริษัท', d.org, 'พนักงาน', d.cycle));
       if (d.team) box.appendChild(groupSection('ทีมของฉัน', d.team, 'ลูกน้อง', d.cycle));
       box.appendChild(meSection(d));
