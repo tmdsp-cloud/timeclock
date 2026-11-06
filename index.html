@@ -407,6 +407,7 @@
       <div class="muted">วันสิ้นสุดสัญญาจ้าง</div>
       <input type="date" id="mCEnd">
     </div>
+    <label class="chk" id="mLicWrap"><input type="checkbox" id="mLic"> มีใบขับขี่รถยนต์ (ได้เบี้ยพิเศษ)</label>
     <input type="text" id="mSalary" inputmode="decimal" placeholder="เงินเดือน (บาท)" autocomplete="off">
     <div class="muted" id="mSalaryHint"></div>
     <div class="muted" style="margin-top:6px">หัวหน้างาน (ผู้อนุมัติการลา)</div>
@@ -824,6 +825,8 @@ function renderPayLine(l, box) {
   if (l.type === 'รายวัน' && l.absentDays) pRow(box, 'ขาดงาน (ไม่ได้ค่าจ้าง)', days(l.absentDays));
   if (l.otAmount || l.otHours) pRow(box, 'ค่า OT (' + l.otHours + ' ชม.)', '+' + m(l.otAmount), 'plus');
   if (l.commission) pRow(box, 'ค่าคอมมิชชั่น', '+' + m(l.commission), 'plus');
+  if (l.diligence) pRow(box, 'เบี้ยขยัน (ติดต่อกัน ' + l.dilStreak + ' เดือน)', '+' + m(l.diligence), 'plus');
+  if (l.licenseAllow) pRow(box, 'เบี้ยพิเศษ (มีใบขับขี่รถยนต์)', '+' + m(l.licenseAllow), 'plus');
   pRow(box, 'รายได้รวม', m(l.gross), '', true);
   if (l.type === 'สัญญาจ้าง') pRow(box, 'ประกันสังคม', 'ไม่หัก (สัญญาจ้าง)');
   else pRow(box, 'หักประกันสังคม', '-' + m(l.ss), 'minus');
@@ -1565,6 +1568,7 @@ function openModal(mode, e) {
   $('mType').value = isCreate ? '' : (e.empType || '');
   $('mCStart').value = isCreate ? '' : dateVal(e.contractStart);
   $('mCEnd').value = isCreate ? '' : dateVal(e.contractEnd);
+  $('mLic').checked = !isCreate && !!e.license;
   syncTypeUi();
   $('mRole').value = isCreate ? 'employee' : e.role;
   $('mRoleWrap').classList.toggle('hidden', !(isAdmin && !isRootT && !isSelf));
@@ -1596,7 +1600,8 @@ $('mSave').onclick = async () => {
     birthDate: $('mBirth').value, salary: $('mSalary').value.trim(),
     supervisor: $('mSup').value, empType: $('mType').value,
     contractStart: $('mType').value === 'contract' ? $('mCStart').value : '',
-    contractEnd: $('mType').value === 'contract' ? $('mCEnd').value : ''
+    contractEnd: $('mType').value === 'contract' ? $('mCEnd').value : '',
+    license: $('mLic').checked
   };
   if (prof.empType === 'contract' && (!prof.contractStart || !prof.contractEnd)) {
     return setMsg($('mMsg'), 'สัญญาจ้างต้องระบุวันเริ่มต้นและวันสิ้นสุดสัญญา', 'err');
