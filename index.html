@@ -511,6 +511,8 @@ async function init() {
 }
 
 async function loadStatus() {
+  const dashP = api({ action:'dashboard', token:store.get('token') }).then(x => { if (!x.ok) { const e = new Error(x.error); e.code = x.code; throw e; } return x; });
+  dashP.catch(() => {});
   const r = await api({ action:'status', token:store.get('token') });
   if (!r.ok) { const e = new Error(r.error); e.code = r.code; throw e; }
   state.branch = r.branch;
@@ -535,7 +537,7 @@ async function loadStatus() {
     days: ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'], upcoming: [], start: '08:00', end: '17:00' };
   applySchedule(sch);
   show('mainView');
-  loadDashboard();
+  loadDashboard(dashP);
   if (!state.clockStarted) { state.clockStarted = true; startClock(); }
   if (sch.required && !state.gpsStarted) { state.gpsStarted = true; startGps(); }
 }
@@ -1125,10 +1127,29 @@ function financeSection(f, cyc) {
   sec.appendChild(tl);
   return sec;
 }
-async function loadDashboard() {
+async function loadDashboard(pre) {
   const box = $('dashBox');
   try {
-    const d = await call({ action:'dashboard' });
+    // แสดงของครั้งก่อนทันที (ถ้ามี) แล้วค่อยอัปเดตเมื่อข้อมูลใหม่มาถึง
+    if (!box.children.length) {
+      try { const c = JSON.parse(store.get('dashCache_' + (state.me ? state.me.code : '')) || 'null'); if (c) renderDash(c); } catch (e) {}
+    }
+    const d = await (pre || call({ action:'dashboard' }));
+    if (state.me) store.set('dashCache_' + state.me.code, JSON.stringify(d));
+    renderDash(d);
+  } catch (e) {
+    if (e.code === 'AUTH') return;
+    if (box.children.length) return; // มีของเก่าแสดงอยู่แล้ว ไม่ต้องทับด้วยข้อความผิดพลาด
+    box.innerHTML = '';
+    const c = document.createElement('div'); c.className = 'card';
+    const m = document.createElement('div'); m.className = 'muted';
+    m.textContent = 'โหลดสรุปไม่ได้: ' + e.message + ' (หากเพิ่งอัปเดต ตรวจว่า Deploy Apps Script เวอร์ชันใหม่แล้ว)';
+    c.appendChild(m); box.appendChild(c);
+  }
+}
+function renderDash(d) {
+  const box = $('dashBox');
+  {
     const v = viewMode();
     box.innerHTML = '';
     if (state.me && state.me.role === 'admin') {
@@ -1149,13 +1170,6 @@ async function loadDashboard() {
       if (d.team) box.appendChild(groupSection('ทีมของฉัน', d.team, 'ลูกน้อง', d.cycle));
       box.appendChild(meSection(d));
     }
-  } catch (e) {
-    if (e.code === 'AUTH') return;
-    box.innerHTML = '';
-    const c = document.createElement('div'); c.className = 'card';
-    const m = document.createElement('div'); m.className = 'muted';
-    m.textContent = 'โหลดสรุปไม่ได้: ' + e.message + ' (หากเพิ่งอัปเดต ตรวจว่า Deploy Apps Script เวอร์ชันใหม่แล้ว)';
-    c.appendChild(m); box.appendChild(c);
   }
 }
 
