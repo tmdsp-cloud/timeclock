@@ -145,6 +145,23 @@
   .navbar button.on { background:rgba(255,255,255,.22); color:#8fe0b9; font-weight:700; }
   .navbar .dot { position:absolute; top:2px; right:18%; min-width:18px; height:18px; padding:0 4px; border-radius:9px; background:var(--red); color:#fff; font-size:11px; font-weight:700; line-height:18px; text-align:center; }
   .menuBtn { display:none; }
+  .navbar button { font-size:11px; padding:8px 0; min-width:0; }
+  .calnav { display:flex; gap:8px; align-items:center; margin:8px 0 12px; }
+  .calnav button { width:48px; flex:none; padding:10px 0; font-size:22px; line-height:1; }
+  .calnav input { flex:1; min-width:0; text-align:center; }
+  .calgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .calgrid .dh { text-align:center; font-size:12px; font-weight:700; color:var(--muted); padding:4px 0; }
+  .calgrid .dh.red { color:#c0392b; }
+  .calgrid .dc { aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; border-radius:12px; font-weight:600; font-size:15px; }
+  .calgrid .dc.blank { visibility:hidden; }
+  .calgrid .dc.work { background:#dcf3e6; color:#17623f; }
+  .calgrid .dc.off { background:#fbdcdc; color:#b4232a; }
+  .calgrid .dc.today { outline:3px solid #34353c; outline-offset:-1px; }
+  .callegend { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin:12px 0; font-size:13px; color:var(--muted); }
+  .callegend .lg { display:inline-block; width:14px; height:14px; border-radius:4px; vertical-align:-2px; margin-right:4px; }
+  .callegend .lg.work { background:#9bdcb6; } .callegend .lg.off { background:#f2a5a5; } .callegend .lg.today { border:3px solid #34353c; box-sizing:border-box; }
+  .calitem { display:flex; gap:10px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
+  .calitem b { color:#b4232a; min-width:84px; }
   .col-a > .card:first-child { text-align:center; }
   @media (min-width:700px) { .navbar button { font-size:13px; } }
   .logo .logoimg { height:30px; width:auto; max-width:96px; object-fit:contain; background:#fff; border-radius:10px; padding:5px 8px; display:block; box-sizing:content-box; }
@@ -170,6 +187,7 @@
   <button data-nav="leave" id="navLeave"><i>📝</i>ขอลา<span class="dot hidden" id="navDot"></span></button>
   <button data-nav="ot" id="navOt"><i>⏱</i>OT<span class="dot hidden" id="navDotOt"></span></button>
   <button data-nav="pay"><i>💵</i>เงินเดือน<span class="dot hidden" id="navDotPay"></span></button>
+  <button data-nav="cal"><i>📅</i>ปฏิทิน</button>
   <button data-nav="manage" id="navManage"><i>👥</i>จัดการ</button>
 </nav>
 <div class="wrap">
@@ -328,6 +346,22 @@
     <div class="card" id="empList"></div>
   </div>
 
+  <!-- ปฏิทิน -->
+  <div id="calView" class="hidden">
+    <div class="card">
+      <div class="top"><h1 id="calTitle">ปฏิทินวันทำงาน</h1></div>
+      <div class="calnav">
+        <button class="gray" id="calPrev" aria-label="เดือนก่อน">‹</button>
+        <input type="month" id="calMonth">
+        <button class="gray" id="calNext" aria-label="เดือนถัดไป">›</button>
+      </div>
+      <div class="calgrid" id="calGrid"></div>
+      <div class="callegend"><span><i class="lg work"></i> วันทำงาน/เข้างาน</span><span><i class="lg off"></i> วันหยุด/ไม่เข้างาน</span><span><i class="lg today"></i> วันนี้</span></div>
+      <div id="calList"></div>
+      <div id="calMsg"></div>
+    </div>
+  </div>
+
   <!-- เงินเดือน -->
   <div id="payView" class="hidden">
     <div class="card">
@@ -481,11 +515,11 @@ async function call(payload) {
 }
 
 function show(id) {
-  ['loading','loginView','mainView','manageView','leaveView','otView','otReportView','payView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  ['loading','loginView','mainView','manageView','leaveView','otView','otReportView','payView','calView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
   document.querySelector('.wrap').classList.toggle('main', id === 'mainView');
   const inApp = !['loading','loginView'].includes(id);
   $('topbar').classList.toggle('hidden', !inApp); $('navbar').classList.toggle('hidden', !inApp);
-  const navOf = { mainView:'home', leaveView:'leave', otView:'ot', payView:'pay', manageView:'manage', otReportView:'manage' }[id];
+  const navOf = { mainView:'home', leaveView:'leave', otView:'ot', payView:'pay', calView:'cal', manageView:'manage', otReportView:'manage' }[id];
   document.querySelectorAll('#navbar button').forEach(b => b.classList.toggle('on', b.dataset.nav === navOf));
   window.scrollTo(0, 0);
 }
@@ -613,6 +647,7 @@ $('tbOut').onclick = () => $('logoutBtn').click();
 document.querySelectorAll('#navbar button').forEach(b => b.onclick = () => {
   const k = b.dataset.nav;
   if (k === 'home') { loadStatus().catch(() => show('mainView')); }
+  else if (k === 'cal') openCalendar();
   else $({ leave:'leaveBtn', ot:'otBtn', pay:'payBtn', manage:'manageBtn' }[k]).click();
 });
 $('logoutBtn').onclick = () => {
@@ -850,6 +885,65 @@ function payTab(name) {
 $('payTabMine').onclick = () => payTab('Mine');
 $('payTabRun').onclick = async () => { payTab('Run'); await loadPayRun(); };
 $('payBack').onclick = () => { loadStatus().catch(() => show('mainView')); };
+/* ---------- ปฏิทิน ---------- */
+const calState = { year: 0, data: null, month: '' };
+const TH_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const TH_DAYS = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+async function calLoadYear(y) {
+  if (calState.year === y && calState.data) return calState.data;
+  const r = await call({ action:'calendar', year:y });
+  calState.year = y; calState.data = r; return r;
+}
+async function openCalendar() {
+  show('calView'); setMsg($('calMsg'), '');
+  if (!calState.month) {
+    const t = new Date(); calState.month = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0');
+  }
+  await renderCalendar();
+}
+async function renderCalendar() {
+  const [y, m] = calState.month.split('-').map(Number);
+  $('calMonth').value = calState.month;
+  $('calGrid').innerHTML = '<div class="muted" style="grid-column:1/-1">กำลังโหลด...</div>';
+  let d;
+  try { d = await calLoadYear(y); } catch (e) { if (e.code !== 'AUTH') setMsg($('calMsg'), e.message, 'err'); return; }
+  const hol = {}; d.holidays.forEach(h => { hol[h.date] = h.name; });
+  let sales = null; if (d.salesDays) { sales = {}; d.salesDays.forEach(x => { sales[x] = true; }); }
+  $('calTitle').textContent = sales ? 'ตารางเข้างานของฉัน (Sales)' : 'ปฏิทินวันทำงาน';
+  const g = $('calGrid'); g.innerHTML = '';
+  TH_DAYS.forEach((n, i) => { const c = document.createElement('div'); c.className = 'dh' + (i === 0 ? ' red' : ''); c.textContent = n; g.appendChild(c); });
+  const first = new Date(y, m - 1, 1).getDay(), last = new Date(y, m, 0).getDate();
+  for (let i = 0; i < first; i++) { const c = document.createElement('div'); c.className = 'dc blank'; g.appendChild(c); }
+  for (let day = 1; day <= last; day++) {
+    const ds = y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    const dow = new Date(y, m - 1, day).getDay() || 7;
+    const off = !!hol[ds] || (sales ? !sales[ds] : d.workDays.indexOf(dow) < 0);
+    const c = document.createElement('div');
+    c.className = 'dc ' + (off ? 'off' : 'work') + (ds === d.today ? ' today' : '');
+    c.textContent = day; if (hol[ds]) c.title = hol[ds];
+    g.appendChild(c);
+  }
+  const list = $('calList'); list.innerHTML = '';
+  const t = document.createElement('div'); t.className = 'muted'; t.style.margin = '6px 0';
+  t.textContent = TH_MONTHS[m - 1] + ' ' + (y + 543);
+  const mh = d.holidays.filter(h => h.date.slice(0, 7) === calState.month);
+  const wd = d.workDays.map(n => TH_DAYS[n % 7]).join(' ');
+  t.textContent += sales ? ' · เข้างาน ' + Object.keys(sales).filter(x => x.slice(0, 7) === calState.month && !hol[x]).length + ' วันในเดือนนี้ (' + hm(d.workStart) + '–' + hm(d.workEnd) + ')' : ' · วันทำงาน: ' + wd + ' (' + hm(d.workStart) + '–' + hm(d.workEnd) + ')';
+  list.appendChild(t);
+  mh.forEach(h => { const r = document.createElement('div'); r.className = 'calitem'; const b = document.createElement('b'); b.textContent = thDate(h.date); const n = document.createElement('span'); n.textContent = h.name; r.append(b, n); list.appendChild(r); });
+  if (!mh.length) { const r = document.createElement('div'); r.className = 'muted'; r.textContent = 'เดือนนี้ไม่มีวันหยุดนักขัตฤกษ์/วันหยุดบริษัทเพิ่มเติม'; list.appendChild(r); }
+}
+function hm(min) { return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); }
+function calShift(n) {
+  const [y, m] = calState.month.split('-').map(Number);
+  const t = new Date(y, m - 1 + n, 1);
+  calState.month = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0');
+  renderCalendar();
+}
+$('calPrev').onclick = () => calShift(-1);
+$('calNext').onclick = () => calShift(1);
+$('calMonth').onchange = () => { if ($('calMonth').value) { calState.month = $('calMonth').value; renderCalendar(); } };
+
 $('payBtn').onclick = async () => { show('payView'); payTab('Mine'); setMsg($('payMsg'), ''); await loadPayMine(); };
 
 async function loadPayMine() {
