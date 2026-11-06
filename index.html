@@ -180,6 +180,7 @@
 <div class="topbar hidden" id="topbar">
   <div class="logo"><img src="logo-mark.png" alt="Tmd" class="logoimg"></div>
   <div class="who"><span id="tbName">TMDSP_HR</span><small id="tbSub">TMDSP_HR</small></div>
+  <button class="round hidden" id="tbBell" title="แจ้งเตือนบนมือถือ" aria-label="แจ้งเตือน"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></button>
   <button class="round" id="tbOut" title="ออกจากระบบ" aria-label="ออกจากระบบ"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
 </div>
 <nav class="navbar hidden" id="navbar">
@@ -507,11 +508,35 @@ async function call(payload) {
   if (!r.ok) {
     const e = new Error(r.error); e.code = r.code;
     if (e.code === 'AUTH') {
-      store.del('token'); closeModal(); show('loginView'); setMsg($('loginMsg'), e.message, 'err');
+      store.del('token'); clearCaches(); closeModal(); show('loginView'); setMsg($('loginMsg'), e.message, 'err');
     }
     throw e;
   }
   return r;
+}
+
+// อ่านข้อมูลแบบ "เห็นของเดิมก่อน แล้วอัปเดต": ถ้ามีแคช เรียก onData(cache) ทันที แล้วโหลดใหม่จากเซิร์ฟเวอร์เรียก onData(ใหม่) อีกครั้ง
+const memCache = {};
+function clearCaches() { Object.keys(memCache).forEach(k => delete memCache[k]); try { Object.keys(localStorage).filter(k => k.indexOf('c_') === 0 || k.indexOf('dashCache_') === 0).forEach(k => localStorage.removeItem(k)); } catch (e) {} calState.year = 0; calState.data = null; }
+function cacheKey(p) { return (state.me ? state.me.code : '') + '|' + JSON.stringify(p); }
+async function swr(payload, onData) {
+  const k = cacheKey(payload);
+  let had = false;
+  if (memCache[k]) { had = true; try { onData(memCache[k], true); } catch (e) {} }
+  else { try { const c = JSON.parse(store.get('c_' + k) || 'null'); if (c) { had = true; memCache[k] = c; onData(c, true); } } catch (e) {} }
+  try {
+    const r = await call(payload);
+    memCache[k] = r; try { store.set('c_' + k, JSON.stringify(r)); } catch (e) {}
+    onData(r, false); return r;
+  } catch (e) { if (!had) throw e; return memCache[k]; }
+}
+// โหลดข้อมูลหน้าอื่นรอไว้เบื้องหลังหลังเข้าหน้าหลัก ให้กดเมนูแล้วเห็นทันที
+function prefetchAll() {
+  const jobs = [{ action:'leaveOverview' }, { action:'otOverview' }, { action:'payrollMine' }, { action:'calendar', year:new Date().getFullYear() }];
+  if (state.me && (state.me.role === 'hr' || state.me.role === 'admin')) jobs.push({ action:'listEmployees' });
+  let i = 0;
+  const next = () => { if (i >= jobs.length) return; const j = jobs[i++]; call(j).then(r => { memCache[cacheKey(j)] = r; try { store.set('c_' + cacheKey(j), JSON.stringify(r)); } catch (e) {} }).catch(() => {}).then(() => setTimeout(next, 400)); };
+  setTimeout(next, 1500);
 }
 
 function show(id) {
@@ -558,6 +583,7 @@ async function loadStatus() {
   $('tbName').textContent = r.employee.name;
   $('tbSub').textContent = 'TMDSP_HR · ' + r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
   state.nextType = r.nextType;
+  pushInit(r.push);
   const ap = Number(r.approvalsPending) || 0;
   $('leaveBadge').textContent = ap + ' รออนุมัติ';
   $('leaveBadge').classList.toggle('hidden', !ap);
@@ -573,6 +599,7 @@ async function loadStatus() {
   applySchedule(sch);
   show('mainView');
   loadDashboard(dashP);
+  if (!state.prefetched) { state.prefetched = true; prefetchAll(); }
   if (!state.clockStarted) { state.clockStarted = true; startClock(); }
   if (sch.required && !state.gpsStarted) { state.gpsStarted = true; startGps(); }
 }
@@ -643,6 +670,68 @@ $('empCode').addEventListener('input', () => {
   }
 });
 
+
+/* ---------- แจ้งเตือนบนมือถือ (FCM) ---------- */
+const push = { info:null, sdk:null, reg:null, token:null, on:false };
+function pushSupported() { return 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window; }
+function pushLabel() { const u = navigator.userAgent; return (/iPhone|iPad/.test(u) ? 'iOS' : /Android/.test(u) ? 'Android' : 'เว็บ') + ' ' + new Date().toLocaleDateString('th-TH'); }
+function pushPaint() {
+  const b = $('tbBell'); if (!b) return;
+  b.classList.toggle('hidden', !(push.info && push.info.enabled));
+  b.style.opacity = push.on ? '1' : '.55';
+  b.title = push.on ? 'แจ้งเตือนเปิดอยู่ (แตะเพื่อปิด)' : 'เปิดแจ้งเตือนบนมือถือ';
+}
+function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('โหลดไม่สำเร็จ')); document.head.appendChild(s); }); }
+async function pushGetToken(interactive) {
+  const c = push.info.config;
+  if (!push.sdk) {
+    await loadScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
+    await loadScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+    firebase.initializeApp(c);
+    push.sdk = firebase.messaging();
+    push.sdk.onMessage(p => {
+      const n = p.notification || {};
+      toastMsg((n.title || '') + (n.body ? ' — ' + n.body : ''));
+      loadStatus().catch(() => {});
+    });
+  }
+  if (!push.reg) push.reg = await navigator.serviceWorker.register('sw.js?k=' + encodeURIComponent(c.apiKey) + '&p=' + encodeURIComponent(c.projectId) + '&s=' + encodeURIComponent(c.messagingSenderId) + '&a=' + encodeURIComponent(c.appId));
+  await navigator.serviceWorker.ready;
+  return push.sdk.getToken({ vapidKey: push.info.vapidKey, serviceWorkerRegistration: push.reg });
+}
+function toastMsg(t) {
+  let d = $('pushToast');
+  if (!d) { d = document.createElement('div'); d.id = 'pushToast'; d.style.cssText = 'position:fixed;left:12px;right:12px;top:12px;z-index:99;background:#2f7d5b;color:#fff;padding:12px 14px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:14px'; document.body.appendChild(d); }
+  d.textContent = t; d.style.display = 'block'; clearTimeout(d._t); d._t = setTimeout(() => d.style.display = 'none', 6000);
+}
+async function pushEnable(interactive) {
+  if (!pushSupported()) { if (interactive) alert('เครื่อง/เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน\nบน iPhone ต้องเพิ่มแอปลงหน้าจอโฮม (Add to Home Screen) ก่อน และใช้ iOS 16.4 ขึ้นไป'); return; }
+  if (Notification.permission === 'denied') { if (interactive) alert('การแจ้งเตือนถูกบล็อก กรุณาเปิดอนุญาตในการตั้งค่าของเบราว์เซอร์/แอป'); return; }
+  if (Notification.permission !== 'granted') { if (!interactive) return; if (await Notification.requestPermission() !== 'granted') return; }
+  try {
+    const t = await pushGetToken(interactive);
+    if (!t) return;
+    const r = await api({ action:'pushRegister', token:store.get('token'), fcmToken:t, label:pushLabel() });
+    if (r.ok) { push.token = t; push.on = true; try { localStorage.setItem('pushOn', '1'); } catch (e) {} }
+    else if (interactive) alert(r.error || 'เปิดแจ้งเตือนไม่สำเร็จ');
+  } catch (e) { if (interactive) alert('เปิดแจ้งเตือนไม่สำเร็จ: ' + e.message); }
+  pushPaint();
+}
+async function pushDisable() {
+  try { if (push.token) await api({ action:'pushUnregister', token:store.get('token'), fcmToken:push.token }); if (push.sdk) await push.sdk.deleteToken(); } catch (e) {}
+  push.token = null; push.on = false; try { localStorage.setItem('pushOn', '0'); } catch (e) {}
+  pushPaint();
+}
+async function pushInit(info) {
+  push.info = info || { enabled:false };
+  pushPaint();
+  if (!push.info.enabled || !pushSupported()) return;
+  let want = null; try { want = localStorage.getItem('pushOn'); } catch (e) {}
+  if (Notification.permission === 'granted' && want !== '0' && !push.on) pushEnable(false);
+  else if (Notification.permission === 'granted' && want === '0') { push.on = false; pushPaint(); }
+}
+$('tbBell').onclick = () => { if (push.on) { if (confirm('ปิดการแจ้งเตือนบนเครื่องนี้?')) pushDisable(); } else pushEnable(true); };
+
 $('tbOut').onclick = () => $('logoutBtn').click();
 document.querySelectorAll('#navbar button').forEach(b => b.onclick = () => {
   const k = b.dataset.nav;
@@ -651,7 +740,8 @@ document.querySelectorAll('#navbar button').forEach(b => b.onclick = () => {
   else $({ leave:'leaveBtn', ot:'otBtn', pay:'payBtn', manage:'manageBtn' }[k]).click();
 });
 $('logoutBtn').onclick = () => {
-  store.del('token');
+  if (push.token) { api({ action:'pushUnregister', token:store.get('token'), fcmToken:push.token }).catch(() => {}); push.token = null; push.on = false; }
+  store.del('token'); clearCaches(); state.prefetched = false;
   state.photo = null; state.me = null;
   resetPhoto();
   setMsg($('actionMsg'), '');
@@ -891,8 +981,11 @@ const TH_MONTHS = ['มกราคม','กุมภาพันธ์','มี
 const TH_DAYS = ['อา','จ','อ','พ','พฤ','ศ','ส'];
 async function calLoadYear(y) {
   if (calState.year === y && calState.data) return calState.data;
-  const r = await call({ action:'calendar', year:y });
-  calState.year = y; calState.data = r; return r;
+  const pl = { action:'calendar', year:y }, k = cacheKey(pl);
+  let c = memCache[k]; if (!c) { try { c = JSON.parse(store.get('c_' + k) || 'null'); } catch (e) {} }
+  const fresh = call(pl).then(r => { memCache[k] = r; try { store.set('c_' + k, JSON.stringify(r)); } catch (e) {} if (calState.year === y) calState.data = r; return r; });
+  if (c) { fresh.catch(() => {}); calState.year = y; calState.data = c; return c; } // มีแคช: แสดงทันที ปฏิทินเปลี่ยนไม่บ่อย อัปเดตเบื้องหลัง
+  const r = await fresh; calState.year = y; calState.data = r; return r;
 }
 async function openCalendar() {
   show('calView'); setMsg($('calMsg'), '');
@@ -950,8 +1043,7 @@ async function loadPayMine() {
   const box = $('payMine');
   box.innerHTML = '<div class="card"><div class="muted">กำลังโหลด...</div></div>';
   try {
-    const r = await call({ action:'payrollMine' });
-    $('payTabs').classList.toggle('hidden', !r.canManage);
+    await swr({ action:'payrollMine' }, (r, cached) => {    $('payTabs').classList.toggle('hidden', !r.canManage);
     box.innerHTML = '';
     r.cycles.forEach(c => {
       const card = document.createElement('div'); card.className = 'card';
@@ -980,6 +1072,7 @@ async function loadPayMine() {
     const n = document.createElement('div'); n.className = 'muted'; n.style.cssText = 'font-size:12px;padding:0 4px 8px';
     n.textContent = 'หักประกันสังคม ' + r.ssRate + '% สูงสุด ' + money(r.ssCap) + ' บาท (สัญญาจ้างไม่หัก) · มาสาย/ออกก่อนหักตามนาที × ' + r.penaltyMult;
     box.appendChild(n);
+    });
   } catch (e) {
     if (e.code === 'AUTH') return;
     box.innerHTML = '';
@@ -1310,8 +1403,7 @@ $('lvStart').onchange = () => { if (!$('lvEnd').value || $('lvEnd').value < $('l
 
 async function loadLeave() {
   try {
-    const r = await call({ action:'leaveOverview' });
-    state.leave = r;
+    await swr({ action:'leaveOverview' }, (r, cached) => {    state.leave = r;
     $('lvSup').textContent = r.supervisor ? 'ผู้อนุมัติ: ' + r.supervisor.name + ' (' + r.supervisor.code + ')'
       : '⚠ ยังไม่ได้ระบุหัวหน้างาน กรุณาติดต่อ HR';
     renderBalances(r);
@@ -1319,6 +1411,7 @@ async function loadLeave() {
     $('tabAppr').classList.toggle('hidden', !r.canApprove);
     $('apprCount').textContent = r.approvals.length ? '(' + r.approvals.length + ')' : '';
     renderApprovals(r.approvals);
+    });
   } catch (e) {
     if (e.code === 'AUTH') return;
     setMsg($('lvMsg'), e.message + ' (หากเพิ่งอัปเดต ตรวจว่า Deploy Apps Script เวอร์ชันใหม่แล้ว)', 'err');
@@ -1429,8 +1522,7 @@ $('otStart').onchange = $('otEnd').onchange = otCalc;
 
 async function loadOt() {
   try {
-    const r = await call({ action:'otOverview' });
-    $('otSup').textContent = r.supervisor ? 'ผู้อนุมัติ: ' + r.supervisor.name + ' (' + r.supervisor.code + ')' : '⚠ ยังไม่ได้ระบุหัวหน้างาน กรุณาติดต่อ HR';
+    await swr({ action:'otOverview' }, (r, cached) => {    $('otSup').textContent = r.supervisor ? 'ผู้อนุมัติ: ' + r.supervisor.name + ' (' + r.supervisor.code + ')' : '⚠ ยังไม่ได้ระบุหัวหน้างาน กรุณาติดต่อ HR';
     $('otSum').textContent = cycleText(r.cycle) + ': อนุมัติแล้ว ' + r.monthApproved + ' ชม.' + (r.monthPending ? ' · รออนุมัติ ' + r.monthPending + ' ชม.' : '') + ' · ทำจริงตามเวลาลงเวลา ' + r.monthVerified + ' ชม.' + (r.monthAmount ? ' · ค่า OT ที่คำนวณแล้ว ' + Number(r.monthAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' ฿' : '');
     if (!$('otDate').value) $('otDate').value = r.today;
     otCalc();
@@ -1438,6 +1530,7 @@ async function loadOt() {
     $('otTabAppr').classList.toggle('hidden', !r.canApprove);
     $('otApprCount').textContent = r.approvals.length ? '(' + r.approvals.length + ')' : '';
     renderOtAppr(r.approvals);
+    });
   } catch (e) {
     if (e.code === 'AUTH') return;
     setMsg($('otMsg'), e.message + ' (หากเพิ่งอัปเดต ตรวจว่า Deploy Apps Script เวอร์ชันใหม่แล้ว)', 'err');
@@ -1594,10 +1687,10 @@ $('addEmpBtn').onclick = () => openModal('create', null);
 async function loadEmployees() {
   $('empList').innerHTML = '<div class="muted">กำลังโหลด...</div>';
   try {
-    const r = await call({ action:'listEmployees' });
-    state.list = r.employees;
+    await swr({ action:'listEmployees' }, (r, cached) => {    state.list = r.employees;
     state.positions = r.positions || [];
     renderList();
+    });
   } catch (e) {
     $('empList').innerHTML = '';
     setMsg($('manageMsg'), e.message, 'err');
