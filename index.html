@@ -118,7 +118,7 @@
   /* ===== ธีม TMDSP_HR (โทนเทาเข้ม + การ์ดขาว + เขียวเทียล) ===== */
   :root { --bg:#34353c; --brand:#2f7d5b; --brand2:#e3f3ec; --green:#2f7d5b; --blue:#2f7d5b; --text:#1f2a37; --muted:#7a8696; --line:#e1e6ec; }
   body { background:var(--bg); font-family:"Noto Sans Thai","Sarabun",-apple-system,sans-serif;
-    padding-top:calc(78px + env(safe-area-inset-top)); padding-bottom:calc(120px + env(safe-area-inset-bottom)); }
+    padding-top:calc(78px + env(safe-area-inset-top)); padding-bottom:calc(40px + env(safe-area-inset-bottom)); }
   .card { border-radius:22px; box-shadow:0 4px 0 #c5ced8; padding:20px; }
   h1 { font-size:19px; }
   .tile { background:#f1f5f3; }
@@ -137,15 +137,37 @@
   .logo { display:flex; align-items:center; gap:8px; color:#fff; font-weight:700; font-size:20px; letter-spacing:.3px; }
   .logo .mark { width:34px; height:34px; border-radius:10px; background:var(--brand); display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; }
   .logo.big { color:var(--brand); margin-bottom:12px; font-size:24px; }
-  .navbar { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(12px + env(safe-area-inset-bottom)); z-index:20; width:calc(100% - 24px); max-width:560px;
-    display:flex; gap:2px; padding:8px; border-radius:30px; background:rgba(70,72,80,.88); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-    border:2px solid rgba(255,255,255,.55); box-shadow:0 8px 24px rgba(0,0,0,.35); }
-  .navbar button { flex:1; background:none; color:#c9ced6; border-radius:22px; padding:8px 2px; font-size:12px; font-weight:500; display:flex; flex-direction:column; align-items:center; gap:3px; position:relative; }
-  .navbar button i { font-style:normal; font-size:22px; line-height:1; }
-  .navbar button.on { background:rgba(255,255,255,.22); color:#8fe0b9; font-weight:700; }
-  .navbar .dot { position:absolute; top:2px; right:18%; min-width:18px; height:18px; padding:0 4px; border-radius:9px; background:var(--red); color:#fff; font-size:11px; font-weight:700; line-height:18px; text-align:center; }
+  /* ===== เมนู Side bar ===== */
+  .sidebar { position:fixed; top:0; bottom:0; left:0; z-index:40; width:290px; max-width:84vw; background:#2b2c32; color:#e5e7eb; display:flex; flex-direction:column;
+    padding:calc(18px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)); overflow-y:auto; transform:translateX(-105%); transition:transform .25s ease; box-shadow:8px 0 30px rgba(0,0,0,.4); }
+  body.sb-open .sidebar { transform:none; }
+  .sbov { position:fixed; inset:0; z-index:35; background:rgba(0,0,0,.5); opacity:0; pointer-events:none; transition:opacity .25s; }
+  body.sb-open .sbov { opacity:1; pointer-events:auto; }
+  body.sb-open { overflow:hidden; }
+  .sbhead { display:grid; grid-template-columns:1fr auto; align-items:center; row-gap:12px; padding:2px 8px 16px; border-bottom:1px solid #44454d; margin-bottom:10px; }
+  .sbhead .logo { justify-self:start; }
+  .sbhead .sbwho { grid-column:1/-1; }
+  .sbhead .logoimg { height:24px; }
+  .sbhead b { display:block; font-size:15px; color:#fff; line-height:1.3; }
+  .sbhead small { color:#9aa1ad; font-size:12px; }
+  .sbx { grid-column:2; grid-row:1; background:none; color:#9aa1ad; font-size:22px; padding:6px 8px; border-radius:10px; }
+  .sidebar .nv { display:flex; align-items:center; gap:14px; width:100%; text-align:left; background:none; color:#e5e7eb; padding:13px 12px; border-radius:14px; font-size:16px; font-weight:500; margin-bottom:2px; position:relative; }
+  .sidebar .nv i { font-style:normal; font-size:20px; width:26px; text-align:center; }
+  .sidebar .nv.on { background:#fff; color:var(--brand); font-weight:700; }
+  .sidebar .dot { margin-left:auto; min-width:22px; height:22px; padding:0 6px; border-radius:11px; background:var(--red); color:#fff; font-size:12px; font-weight:700; line-height:22px; text-align:center; }
+  .sidebar .sp { flex:1; min-height:12px; }
+  .sidebar .nv.logout { color:#fca5a5; border-top:1px solid #44454d; border-radius:0 0 14px 14px; margin-top:8px; padding-top:16px; }
+  .topbar .ham { position:relative; }
+  .topbar .ham .dot { position:absolute; top:-2px; right:-2px; min-width:18px; height:18px; padding:0 4px; border-radius:9px; background:var(--red); color:#fff; font-size:11px; font-weight:700; line-height:18px; text-align:center; }
+  @media (min-width:900px) {
+    .sidebar { transform:none; box-shadow:none; width:250px; transition:none; border-right:1px solid #44454d; }
+    .sbov { display:none; }
+    body.sb-open { overflow:auto; }
+    .sbx, .topbar .ham { display:none !important; }
+    body.has-sb { padding-left:calc(250px + 24px); }
+    body.has-sb .topbar { left:250px; }
+  }
   .menuBtn { display:none; }
-  .navbar button { font-size:11px; padding:8px 0; min-width:0; }
   .calnav { display:flex; gap:8px; align-items:center; margin:8px 0 12px; }
   .calnav button { width:48px; flex:none; padding:10px 0; font-size:22px; line-height:1; }
   .calnav input { flex:1; min-width:0; text-align:center; }
@@ -163,9 +185,16 @@
   .calitem { display:flex; gap:10px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
   .calitem b { color:#b4232a; min-width:84px; }
   .col-a > .card:first-child { text-align:center; }
-  @media (min-width:700px) { .navbar button { font-size:13px; } }
   .logo .logoimg { height:30px; width:auto; max-width:96px; object-fit:contain; background:#fff; border-radius:10px; padding:5px 8px; display:block; box-sizing:content-box; }
   .topbar .logo { flex:none; }
+  .mgrdash { display:grid; grid-template-columns:1fr; gap:0 16px; align-items:start; }
+  .mgrdash .span2 { grid-column:1/-1; }
+  .mgrdash .tiles { grid-template-columns:repeat(2,1fr); }
+  .mgrdash .tile.wide { grid-column:1/-1; }
+  @media (min-width:900px) { .mgrdash { grid-template-columns:1fr 1fr; } }
+  .chartbox svg { width:100%; height:auto; display:block; }
+  .chartbox .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:6px; }
+  .chartbox .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
   .viewsw { display:flex; gap:6px; background:#44454d; padding:5px; border-radius:16px; margin-bottom:12px; }
   .viewsw button { flex:1; padding:9px 4px; font-size:14px; border-radius:12px; background:none; color:#c9ced6; font-weight:600; }
   .viewsw button.on { background:#fff; color:var(--brand); }
@@ -178,18 +207,27 @@
 </head>
 <body>
 <div class="topbar hidden" id="topbar">
+  <button class="round ham" id="tbMenu" aria-label="เปิดเมนู"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="dot hidden" id="tbMenuDot"></span></button>
   <div class="logo"><img src="logo-mark.png" alt="Tmd" class="logoimg"></div>
   <div class="who"><span id="tbName">TMDSP_HR</span><small id="tbSub">TMDSP_HR</small></div>
   <button class="round hidden" id="tbBell" title="แจ้งเตือนบนมือถือ" aria-label="แจ้งเตือน"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></button>
-  <button class="round" id="tbOut" title="ออกจากระบบ" aria-label="ออกจากระบบ"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
+
 </div>
-<nav class="navbar hidden" id="navbar">
-  <button data-nav="home"><i>🏠</i>หน้าหลัก</button>
-  <button data-nav="leave" id="navLeave"><i>📝</i>ขอลา<span class="dot hidden" id="navDot"></span></button>
-  <button data-nav="ot" id="navOt"><i>⏱</i>OT<span class="dot hidden" id="navDotOt"></span></button>
-  <button data-nav="pay"><i>💵</i>เงินเดือน<span class="dot hidden" id="navDotPay"></span></button>
-  <button data-nav="cal"><i>📅</i>ปฏิทิน</button>
-  <button data-nav="manage" id="navManage"><i>👥</i>จัดการ</button>
+<div class="sbov hidden" id="sbOv"></div>
+<nav class="sidebar hidden" id="navbar" aria-label="เมนูหลัก">
+  <div class="sbhead">
+    <div class="logo"><img src="logo-mark.png" alt="Tmd" class="logoimg"></div>
+    <div class="sbwho"><b id="sbName">TMDSP_HR</b><small id="sbSub"></small></div>
+    <button class="sbx" id="sbClose" aria-label="ปิดเมนู">✕</button>
+  </div>
+  <button class="nv" data-nav="home"><i>🏠</i>หน้าหลัก</button>
+  <button class="nv" data-nav="leave" id="navLeave"><i>📝</i>ขอลา<span class="dot hidden" id="navDot"></span></button>
+  <button class="nv" data-nav="ot" id="navOt"><i>⏱</i>OT<span class="dot hidden" id="navDotOt"></span></button>
+  <button class="nv" data-nav="pay"><i>💵</i>เงินเดือน<span class="dot hidden" id="navDotPay"></span></button>
+  <button class="nv" data-nav="cal"><i>📅</i>ปฏิทิน</button>
+  <button class="nv" data-nav="manage" id="navManage"><i>👥</i>จัดการพนักงาน</button>
+  <div class="sp"></div>
+  <button class="nv logout" data-nav="logout"><i>⎋</i>ออกจากระบบ</button>
 </nav>
 <div class="wrap">
 
@@ -219,7 +257,7 @@
           <h1 id="empName">-</h1>
           <div class="muted" id="empCode2"></div>
         </div>
-        <button class="link menuBtn" id="logoutBtn">ออกจากระบบ</button>
+        <button class="link menuBtn hidden" id="logoutBtn">ออกจากระบบ</button>
       </div>
       <button id="leaveBtn" class="menuBtn gray" style="margin-top:12px">📝 ขออนุมัติลา <span id="leaveBadge" class="badge hidden"></span></button>
       <button id="otBtn" class="menuBtn gray" style="margin-top:8px">⏱ ขอทำ OT</button>
@@ -543,9 +581,10 @@ function show(id) {
   ['loading','loginView','mainView','manageView','leaveView','otView','otReportView','payView','calView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
   document.querySelector('.wrap').classList.toggle('main', id === 'mainView');
   const inApp = !['loading','loginView'].includes(id);
-  $('topbar').classList.toggle('hidden', !inApp); $('navbar').classList.toggle('hidden', !inApp);
+  $('topbar').classList.toggle('hidden', !inApp); $('navbar').classList.toggle('hidden', !inApp); $('sbOv').classList.toggle('hidden', !inApp);
+  document.body.classList.toggle('has-sb', inApp); sbClose();
   const navOf = { mainView:'home', leaveView:'leave', otView:'ot', payView:'pay', calView:'cal', manageView:'manage', otReportView:'manage' }[id];
-  document.querySelectorAll('#navbar button').forEach(b => b.classList.toggle('on', b.dataset.nav === navOf));
+  document.querySelectorAll('#navbar .nv').forEach(b => b.classList.toggle('on', b.dataset.nav === navOf));
   window.scrollTo(0, 0);
 }
 function setMsg(el, text, kind) {
@@ -591,6 +630,10 @@ async function loadStatus() {
   [['navDot', pc.leave], ['navDotOt', pc.ot], ['navDotPay', pc.pay]].forEach(x => {
     const d = $(x[0]); d.textContent = x[1] > 9 ? '9+' : (x[1] || ''); d.classList.toggle('hidden', !x[1]);
   });
+  const tot = (pc.leave || 0) + (pc.ot || 0) + (pc.pay || 0);
+  $('tbMenuDot').textContent = tot > 9 ? '9+' : (tot || ''); $('tbMenuDot').classList.toggle('hidden', !tot);
+  $('sbName').textContent = r.employee.name;
+  $('sbSub').textContent = r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
   renderToday(r.today);
   updateButton();
   // ถ้าหลังบ้านยังเป็นเวอร์ชันเก่า (ไม่ส่ง schedule มา) ใช้ค่ามาตรฐานไปก่อน จะได้ยังล็อกอินและลงเวลาได้
@@ -732,9 +775,14 @@ async function pushInit(info) {
 }
 $('tbBell').onclick = () => { if (push.on) { if (confirm('ปิดการแจ้งเตือนบนเครื่องนี้?')) pushDisable(); } else pushEnable(true); };
 
-$('tbOut').onclick = () => $('logoutBtn').click();
-document.querySelectorAll('#navbar button').forEach(b => b.onclick = () => {
+function sbOpen() { document.body.classList.add('sb-open'); }
+function sbClose() { document.body.classList.remove('sb-open'); }
+$('tbMenu').onclick = sbOpen; $('sbClose').onclick = sbClose; $('sbOv').onclick = sbClose;
+addEventListener('keydown', e => { if (e.key === 'Escape') sbClose(); });
+document.querySelectorAll('#navbar .nv').forEach(b => b.onclick = () => {
   const k = b.dataset.nav;
+  sbClose();
+  if (k === 'logout') { $('logoutBtn').click(); return; }
   if (k === 'home') { loadStatus().catch(() => show('mainView')); }
   else if (k === 'cal') openCalendar();
   else $({ leave:'leaveBtn', ot:'otBtn', pay:'payBtn', manage:'manageBtn' }[k]).click();
@@ -1280,7 +1328,7 @@ const VIEW_LABEL = { manager:'ผู้จัดการ', hr:'HR', employee:'�
 function isApprover() { const m = state.me || {}; return m.role === 'admin' || m.position === 'Manager (ผู้ดูแลระบบ)'; }
 function viewMode() {
   const m = state.me || {};
-  if (m.role === 'admin') { const v = store.get('viewAs'); return VIEW_LABEL[v] ? v : 'manager'; }
+  if (m.role === 'admin') return 'manager';
   if (isApprover()) return 'manager';
   if (m.role === 'hr') return 'hr';
   return 'employee';
@@ -1290,16 +1338,6 @@ function applyViewNav() {
   const canManage = (m.role === 'hr' || m.role === 'admin') && v !== 'employee';
   $('navManage').classList.toggle('hidden', !canManage);
   $('manageBtn').classList.toggle('hidden', !canManage);
-}
-function viewSwitcher() {
-  const w = document.createElement('div'); w.className = 'viewsw';
-  ['manager', 'hr', 'employee'].forEach(k => {
-    const b = document.createElement('button'); b.type = 'button'; b.textContent = VIEW_LABEL[k];
-    b.className = k === viewMode() ? 'on' : '';
-    b.onclick = () => { store.set('viewAs', k); loadDashboard(); };
-    w.appendChild(b);
-  });
-  return w;
 }
 function financeSection(f, cyc) {
   const sec = document.createElement('div'); sec.className = 'card dsec';
@@ -1315,6 +1353,95 @@ function financeSection(f, cyc) {
   Array.from(tl.children).forEach(c => c.classList.add('wide'));
   sec.appendChild(tl);
   return sec;
+}
+
+/* ---------- แดชบอร์ดผู้จัดการ ---------- */
+const fmB = n => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function mgrAttendance(g, today) {
+  const sec = document.createElement('div'); sec.className = 'card dsec';
+  const h = document.createElement('h2'); h.textContent = 'Attendance วันนี้'; sec.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'muted'; sub.textContent = thDate(today); sec.appendChild(sub);
+  const tl = document.createElement('div'); tl.className = 'tiles';
+  tl.append(
+    tile('พนักงานทั้งหมด', g.total + ' คน'),
+    tile('มาทำงานแล้ว', g.present + ' คน', 'ต้องมาตามตาราง ' + g.expected + ' คน'),
+    tile('ลา', g.onLeave.length + ' คน'),
+    tile('มาสาย', g.late.length + ' คน')
+  );
+  sec.appendChild(tl);
+  sec.appendChild(plist('ลา (ใคร/ลาอะไร)', g.onLeave, x => x.name + ' (' + x.code + ') · ' + x.type + (x.half ? ' ' + x.half : '')));
+  sec.appendChild(plist('มาสาย (ใครบ้าง)', g.late, x => x.name + ' (' + x.code + ') · สาย ' + x.minutes + ' นาที'));
+  return sec;
+}
+function mgrCost(f, cyc) {
+  const sec = document.createElement('div'); sec.className = 'card dsec';
+  const h = document.createElement('h2'); h.textContent = 'ค่าใช้จ่าย'; sec.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'muted'; sub.textContent = cycleText(cyc) + ' · ' + f.statusLabel + (f.official ? '' : ' (ยังไม่เป็นทางการ)'); sec.appendChild(sub);
+  const tl = document.createElement('div'); tl.className = 'tiles';
+  const t1 = tile('เงินเดือนรวม (ก่อนหัก)', fmB(f.gross) + ' ฿', f.count + ' คน · จ่ายสุทธิ ' + fmB(f.net) + ' ฿');
+  t1.classList.add('wide');
+  tl.append(t1,
+    tile('OT รวม', f.otHours + ' ชม.', fmB(f.otAmount) + ' ฿'),
+    tile('OT คิดเป็น % ของเงินเดือน', f.otPercent === null || f.otPercent === undefined ? '—' : f.otPercent + '%', 'ฐาน: ค่าจ้างพื้นฐาน ' + fmB(f.basePay || 0) + ' ฿'));
+  sec.appendChild(tl);
+  return sec;
+}
+function mgrChartCard() {
+  const sec = document.createElement('div'); sec.className = 'card dsec span2 chartbox';
+  const h = document.createElement('h2'); h.textContent = 'เงินเดือนรวม และ % OT ย้อนหลัง 6 รอบ'; sec.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'muted'; sub.textContent = 'รวมรอบปัจจุบัน · รอบที่ยังไม่อนุมัติเป็นตัวเลขไม่เป็นทางการ'; sec.appendChild(sub);
+  const body = document.createElement('div'); body.id = 'mgrChart'; body.className = 'muted'; body.style.marginTop = '10px'; body.textContent = 'กำลังโหลดกราฟ...';
+  sec.appendChild(body);
+  const c = histCached(); if (c) setTimeout(() => drawMgrChart(c), 0);
+  return sec;
+}
+function histKey() { return 'c_mgrHist_' + (state.me ? state.me.code : ''); }
+function histCached() { try { return JSON.parse(localStorage.getItem(histKey()) || 'null'); } catch (e) { return null; } }
+async function loadMgrHistory() {
+  try {
+    const r = await call({ action:'mgrHistory' });
+    try { localStorage.setItem(histKey(), JSON.stringify(r)); } catch (e) {}
+    drawMgrChart(r);
+  } catch (e) {
+    const b = $('mgrChart'); if (b && !histCached()) b.textContent = 'โหลดกราฟไม่ได้: ' + e.message + ' (ตรวจว่า Deploy Apps Script เวอร์ชันใหม่แล้ว)';
+  }
+}
+function drawMgrChart(r) {
+  const box = $('mgrChart'); if (!box || !r || !r.items) return;
+  window._lastHist = r;
+  const W = Math.max(300, Math.min(720, box.clientWidth || 640)), H = W < 450 ? 280 : 300, L = W < 450 ? 50 : 62, R = W < 450 ? 38 : 46, T = 22, B = 44;
+  const items = r.items, iw = W - L - R, ih = H - T - B;
+  const maxG = Math.max(1, ...items.map(x => x.gross || 0));
+  const maxP = Math.max(1, ...items.map(x => x.otPercent || 0));
+  const gTop = (() => { const p = Math.pow(10, Math.floor(Math.log10(maxG))); return Math.ceil(maxG / p) * p; })();
+  const pTop = (() => { const p = Math.pow(10, Math.floor(Math.log10(maxP))); return Math.max(1, Math.ceil(maxP / p) * p); })();
+  const bw = iw / items.length, NS = 'http://www.w3.org/2000/svg';
+  let g = '';
+  for (let i = 0; i <= 4; i++) {
+    const y = T + ih - ih * i / 4;
+    g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '" stroke="#e5e7eb"/>';
+    g += '<text x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end" font-size="11" fill="#6b7280">' + Math.round(gTop * i / 4).toLocaleString('th-TH') + '</text>';
+    g += '<text x="' + (W - R + 6) + '" y="' + (y + 4) + '" font-size="11" fill="#b45309">' + (Math.round(pTop * i / 4 * 10) / 10) + '%</text>';
+  }
+  const pts = [];
+  items.forEach((x, i) => {
+    const cx = L + bw * i + bw / 2, bh = ih * (x.gross || 0) / gTop, bx = cx - bw * 0.3;
+    g += '<rect x="' + bx + '" y="' + (T + ih - bh) + '" width="' + (bw * 0.6) + '" height="' + bh + '" rx="5" fill="' + (x.current ? '#2f7d5b' : '#8fc4aa') + '"><title>' + x.key + ' เงินเดือนรวม ' + fmB(x.gross) + ' ฿</title></rect>';
+    if (x.gross) g += '<text x="' + cx + '" y="' + (T + ih - bh - 5) + '" text-anchor="middle" font-size="10.5" fill="#374151">' + (x.gross >= 1000 ? Math.round(x.gross / 1000) + 'k' : Math.round(x.gross)) + '</text>';
+    const mm = x.end.slice(5, 7), yy = Number(x.end.slice(0, 4)) + 543;
+    const TH = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    g += '<text x="' + cx + '" y="' + (H - 22) + '" text-anchor="middle" font-size="12" fill="#374151"' + (x.current ? ' font-weight="700"' : '') + '>' + TH[Number(mm)] + '</text>';
+    g += '<text x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="#9ca3af">' + String(yy).slice(2) + (x.current ? ' (ปัจจุบัน)' : '') + '</text>';
+    if (x.otPercent !== null && x.otPercent !== undefined) pts.push({ x: cx, y: T + ih - ih * x.otPercent / pTop, v: x.otPercent, a: x.otAmount, h: x.otHours });
+  });
+  if (pts.length) {
+    g += '<polyline fill="none" stroke="#d97706" stroke-width="2.5" points="' + pts.map(p => p.x + ',' + p.y).join(' ') + '"/>';
+    pts.forEach(p => { g += '<circle cx="' + p.x + '" cy="' + p.y + '" r="4.5" fill="#fff" stroke="#d97706" stroke-width="2.5"><title>OT ' + p.v + '% · ' + fmB(p.a) + ' ฿ · ' + p.h + ' ชม.</title></circle><text x="' + p.x + '" y="' + (p.y - 9) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#b45309" stroke="#fff" stroke-width="3" paint-order="stroke">' + p.v + '%</text>'; });
+  }
+  box.className = ''; box.style.marginTop = '10px';
+  if (!window._histRz) { window._histRz = 1; addEventListener('resize', () => { clearTimeout(window._histT); window._histT = setTimeout(() => { if (window._lastHist) drawMgrChart(window._lastHist); }, 200); }); }
+  box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="กราฟเงินเดือนรวมและเปอร์เซ็นต์ OT ย้อนหลัง 6 รอบ">' + g + '</svg>' +
+    '<div class="legend"><span><i style="background:#2f7d5b"></i>เงินเดือนรวม (฿, แกนซ้าย)</span><span><i style="background:#d97706"></i>OT เป็น % ของเงินเดือน (แกนขวา)</span></div>';
 }
 function myPayCard(d) {
   const sec = document.createElement('div'); sec.className = 'card dsec';
@@ -1353,17 +1480,14 @@ function renderDash(d) {
   {
     const v = viewMode();
     box.innerHTML = '';
-    if (state.me && state.me.role === 'admin') {
-      box.appendChild(viewSwitcher());
-      const n = document.createElement('div'); n.className = 'muted'; n.style.cssText = 'color:#aeb4bf;font-size:12px;margin:-6px 4px 12px';
-      n.textContent = 'สลับมุมมองเพื่อตรวจสอบการแสดงผลเท่านั้น สิทธิ์จริงยังเป็นของผู้ดูแลระบบ';
-      box.appendChild(n);
-    }
     applyViewNav();
+    box.classList.toggle('mgrdash', v === 'manager');
     if (v === 'manager') {
-      if (d.finance) box.appendChild(financeSection(d.finance, d.cycle));
-      if (d.org) box.appendChild(groupSection('ภาพรวมบริษัท', d.org, 'พนักงาน', d.cycle, { noLeave: true }));
-      if (d.me && d.me.pay && d.me.pay.gross) box.appendChild(myPayCard(d));
+      if (d.org) box.appendChild(mgrAttendance(d.org, d.today));
+      if (d.finance) box.appendChild(mgrCost(d.finance, d.cycle));
+      box.appendChild(mgrChartCard());
+      loadMgrHistory();
+      if (d.me && d.me.pay && d.me.pay.gross) { const c = myPayCard(d); c.classList.add('span2'); box.appendChild(c); }
     } else if (v === 'hr') {
       if (d.finance) box.appendChild(financeSection(d.finance, d.cycle));
       if (d.org) box.appendChild(groupSection('ภาพรวมบริษัท', d.org, 'พนักงาน', d.cycle));
