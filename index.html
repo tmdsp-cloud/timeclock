@@ -147,7 +147,7 @@
   .sbhead { display:grid; grid-template-columns:1fr auto; align-items:center; row-gap:12px; padding:2px 8px 16px; border-bottom:1px solid #44454d; margin-bottom:10px; }
   .sbhead .logo { justify-self:start; }
   .sbhead .sbwho { grid-column:1/-1; }
-  .sbhead .logoimg { height:24px; }
+  .sbhead .logoimg { height:28px; }
   .sbhead b { display:block; font-size:15px; color:#fff; line-height:1.3; }
   .sbhead small { color:#9aa1ad; font-size:12px; }
   .sbx { grid-column:2; grid-row:1; background:none; color:#9aa1ad; font-size:22px; padding:6px 8px; border-radius:10px; }
@@ -185,7 +185,7 @@
   .calitem { display:flex; gap:10px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
   .calitem b { color:#b4232a; min-width:84px; }
   .col-a > .card:first-child { text-align:center; }
-  .logo .logoimg { height:30px; width:auto; max-width:96px; object-fit:contain; background:#fff; border-radius:10px; padding:5px 8px; display:block; box-sizing:content-box; }
+  .logo .logoimg { height:32px; width:auto; max-width:110px; object-fit:contain; display:block; }
   .topbar .logo { flex:none; }
   .mgrdash { display:grid; grid-template-columns:1fr; gap:0 16px; align-items:start; }
   .mgrdash .span2 { grid-column:1/-1; }
@@ -1005,7 +1005,7 @@ function renderPayLine(l, box) {
   if (l.licenseAllow) pRow(box, 'เบี้ยพิเศษ (มีใบขับขี่รถยนต์)', '+' + m(l.licenseAllow), 'plus');
   pRow(box, 'รายได้รวม', m(l.gross), '', true);
   if (l.position === 'Manager (ผู้ดูแลระบบ)') pRow(box, 'ประกันสังคม', 'ไม่หัก (กรรมการบริษัท)');
-  else if (l.type === 'สัญญาจ้าง') pRow(box, 'ประกันสังคม', 'ไม่หัก (สัญญาจ้าง)');
+  else if (l.type === 'สัญญาจ้าง') { pRow(box, 'ประกันสังคม', 'ไม่หัก (สัญญาจ้าง)'); pRow(box, 'หัก ณ ที่จ่าย', '-' + m(l.wht || 0), 'minus'); }
   else pRow(box, 'หักประกันสังคม', '-' + m(l.ss), 'minus');
   if (l.lateMins || l.lateDed) pRow(box, 'หักมาสาย (' + l.lateMins + ' นาที)', '-' + m(l.lateDed), 'minus');
   if (l.earlyMins || l.earlyDed) pRow(box, 'หักออกก่อนเวลา (' + l.earlyMins + ' นาที)', '-' + m(l.earlyDed), 'minus');
@@ -1118,7 +1118,7 @@ async function loadPayMine() {
       box.appendChild(card);
     }
     const n = document.createElement('div'); n.className = 'muted'; n.style.cssText = 'font-size:12px;padding:0 4px 8px';
-    n.textContent = 'หักประกันสังคม ' + r.ssRate + '% สูงสุด ' + money(r.ssCap) + ' บาท (สัญญาจ้างไม่หัก) · มาสาย/ออกก่อนหักตามนาที × ' + r.penaltyMult;
+    n.textContent = 'หักประกันสังคม ' + r.ssRate + '% สูงสุด ' + money(r.ssCap) + ' บาท (สัญญาจ้างไม่หัก) · สัญญาจ้างหัก ณ ที่จ่าย ' + (r.whtRate == null ? 3 : r.whtRate) + '% · มาสาย/ออกก่อนหักตามนาที × ' + r.penaltyMult;
     box.appendChild(n);
     });
   } catch (e) {
@@ -1193,7 +1193,7 @@ function renderPayRows(r) {
   const box = $('payRows'); box.innerHTML = '';
   if (!r.run) { box.innerHTML = '<div class="muted">ยังไม่ได้จัดทำเงินเดือนรอบนี้ กดปุ่ม "จัดทำเงินเดือนรอบนี้" (HR)</div>'; return; }
   const sum = document.createElement('div'); sum.className = 'muted'; sum.style.marginBottom = '8px';
-  sum.textContent = 'รวม ' + r.rows.length + ' คน · รายได้รวม ' + money(r.totals.gross) + ' · ประกันสังคม ' + money(r.totals.ss) + ' · เงินได้สุทธิ ' + money(r.totals.net) + ' ฿' + (r.flagged ? ' · ⚠ ' + r.flagged + ' คนคำนวณไม่ได้' : '');
+  sum.textContent = 'รวม ' + r.rows.length + ' คน · รายได้รวม ' + money(r.totals.gross) + ' · ประกันสังคม ' + money(r.totals.ss) + (r.totals.wht ? ' · หัก ณ ที่จ่าย ' + money(r.totals.wht) : '') + ' · เงินได้สุทธิ ' + money(r.totals.net) + ' ฿' + (r.flagged ? ' · ⚠ ' + r.flagged + ' คนคำนวณไม่ได้' : '');
   box.appendChild(sum);
   r.rows.forEach(x => {
     const d = document.createElement('details'); d.style.cssText = 'padding:8px 0;border-bottom:1px solid #e5e7eb';
@@ -1243,9 +1243,9 @@ $('payCsv').onclick = () => {
   const r = state.payRun;
   if (!r || !r.rows.length) return setMsg($('payRunMsg'), 'ไม่มีข้อมูลให้ดาวน์โหลด', 'err');
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const head = ['รหัส','ชื่อ','ประเภท','เงินเดือน/ค่าแรง','หักตามสัดส่วนวัน','วันขาด','หักขาดงาน','นาทีสาย','หักมาสาย','นาทีออกก่อน','หักออกก่อน','ค่า OT','ค่าคอม','รายได้รวม','ประกันสังคม','หักอื่นๆ','เงินได้สุทธิ','หมายเหตุ'];
+  const head = ['รหัส','ชื่อ','ประเภท','เงินเดือน/ค่าแรง','หักตามสัดส่วนวัน','วันขาด','หักขาดงาน','นาทีสาย','หักมาสาย','นาทีออกก่อน','หักออกก่อน','ค่า OT','ค่าคอม','รายได้รวม','ประกันสังคม','หัก ณ ที่จ่าย','หักอื่นๆ','เงินได้สุทธิ','หมายเหตุ'];
   const lines = [head.map(q).join(',')];
-  r.rows.forEach(x => lines.push([x.code, x.name, x.type, x.basePay, x.prorateDed, x.absentDays, x.absentDed, x.lateMins, x.lateDed, x.earlyMins, x.earlyDed, x.otAmount, x.commission, x.gross, x.ss, x.otherDed, x.net, x.remark].map(q).join(',')));
+  r.rows.forEach(x => lines.push([x.code, x.name, x.type, x.basePay, x.prorateDed, x.absentDays, x.absentDed, x.lateMins, x.lateDed, x.earlyMins, x.earlyDed, x.otAmount, x.commission, x.gross, x.ss, x.wht || 0, x.otherDed, x.net, x.remark].map(q).join(',')));
   const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'payroll-' + r.cycle.start + '_' + r.cycle.end + '.csv';
@@ -1315,7 +1315,7 @@ function meSection(d) {
   if (d.me.pay) {
     const f = n => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ฿';
     const p = d.me.pay;
-    const t = tile('เงินเดือนสุทธิ ณ ปัจจุบัน', f(p.net), 'รายได้รวม ' + f(p.gross) + ' · หักรวม ' + f(p.deductions + p.ss));
+    const t = tile('เงินเดือนสุทธิ ณ ปัจจุบัน', f(p.net), 'รายได้รวม ' + f(p.gross) + ' · หักรวม ' + f(p.deductions + p.ss + (p.wht || 0)));
     t.classList.add('wide'); tl.appendChild(t);
     const w = document.createElement('div'); w.className = 'muted'; w.style.cssText = 'font-size:12px;margin-top:8px';
     w.textContent = p.official ? 'ตัวเลขทางการ (ผู้จัดการอนุมัติแล้ว)' : 'ตัวเลขนี้ไม่เป็นทางการ จนกว่าผู้จัดการจะอนุมัติ';
@@ -1347,7 +1347,7 @@ function financeSection(f, cyc) {
   const tl = document.createElement('div'); tl.className = 'tiles';
   tl.append(
     tile('เงินเดือนรวม (ก่อนหัก)', fm(f.gross), f.count + ' คน' + (f.commission ? ' · รวมคอม ' + fm(f.commission) : '')),
-    tile('จ่ายสุทธิรวม', fm(f.net), 'ประกันสังคมรวม ' + fm(f.ss)),
+    tile('จ่ายสุทธิรวม', fm(f.net), 'ประกันสังคมรวม ' + fm(f.ss) + (f.wht ? ' · หัก ณ ที่จ่ายรวม ' + fm(f.wht) : '')),
     tile('OT รวม', fm(f.otAmount), f.otHours + ' ชม.')
   );
   Array.from(tl.children).forEach(c => c.classList.add('wide'));
@@ -1449,7 +1449,7 @@ function myPayCard(d) {
   const sub = document.createElement('div'); sub.className = 'muted'; sub.textContent = cycleText(d.cycle); sec.appendChild(sub);
   const f = n => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ฿';
   const p = d.me.pay, tl = document.createElement('div'); tl.className = 'tiles';
-  const t = tile('เงินเดือนสุทธิ ณ ปัจจุบัน', f(p.net), 'รายได้รวม ' + f(p.gross) + ' · หักรวม ' + f(p.deductions + p.ss));
+  const t = tile('เงินเดือนสุทธิ ณ ปัจจุบัน', f(p.net), 'รายได้รวม ' + f(p.gross) + ' · หักรวม ' + f(p.deductions + p.ss + (p.wht || 0)));
   t.classList.add('wide'); tl.appendChild(t); sec.appendChild(tl);
   const w = document.createElement('div'); w.className = 'muted'; w.style.cssText = 'font-size:12px;margin-top:8px;color:' + (p.official ? '#15803d' : '#b45309');
   w.textContent = p.official ? '✔ ตัวเลขทางการ (ผู้จัดการอนุมัติแล้ว)' : 'ตัวเลขนี้ไม่เป็นทางการ จนกว่าผู้จัดการจะอนุมัติ';
