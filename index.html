@@ -167,6 +167,22 @@
     body.has-sb { padding-left:calc(250px + 24px); }
     body.has-sb .topbar { left:250px; }
   }
+  #perfPanel { position:fixed; inset:0; z-index:70; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; justify-content:center; }
+  #perfPanel.hidden { display:none; }
+  .pf-card { background:#fff; width:100%; max-width:560px; max-height:88vh; overflow:auto; border-radius:20px 20px 0 0; padding:16px; }
+  @media (min-width:700px) { #perfPanel { align-items:center; } .pf-card { border-radius:20px; } }
+  .pf-head { display:flex; justify-content:space-between; align-items:center; font-size:17px; margin-bottom:10px; }
+  .pf-head .sbx { color:#6b7280; width:auto; flex:none; }
+  .pf-head b { white-space:nowrap; }
+  .pf-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .pf-btn { background:var(--brand); color:#fff; padding:10px 12px; border-radius:12px; font-size:14px; }
+  .pf-btn:disabled { opacity:.5; }
+  .pf-sum { font-size:13px; margin:6px 0; }
+  .pf-verdict { background:#fef3c7; color:#92400e; border-radius:10px; padding:8px 10px; font-size:13px; margin:8px 0; }
+  .pf-t { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:8px; }
+  .pf-t th, .pf-t td { text-align:right; padding:4px 6px; border-bottom:1px solid #eee; }
+  .pf-t th:first-child, .pf-t td:first-child { text-align:left; }
+  .sidebar .nv.perf { color:#9aa1ad; font-size:14px; padding:9px 12px; }
   .menuBtn { display:none; }
   .calnav { display:flex; gap:8px; align-items:center; margin:8px 0 12px; }
   .calnav button { width:48px; flex:none; padding:10px 0; font-size:22px; line-height:1; }
@@ -227,6 +243,7 @@
   <button class="nv" data-nav="cal"><i>📅</i>ปฏิทิน</button>
   <button class="nv" data-nav="manage" id="navManage"><i>👥</i>จัดการพนักงาน</button>
   <div class="sp"></div>
+  <button class="nv perf" data-nav="perf"><i>⚡</i>ตรวจความเร็ว</button>
   <button class="nv logout" data-nav="logout"><i>⎋</i>ออกจากระบบ</button>
 </nav>
 <div class="wrap">
@@ -529,14 +546,22 @@ if (!deviceId) {
 }
 
 /* ---------- เรียก backend (text/plain เพื่อเลี่ยง CORS preflight) ---------- */
+const perfLog = [];
 async function api(payload) {
+  const t0 = performance.now();
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(payload)
   });
   const text = await res.text();
-  try { return JSON.parse(text); }
+  const total = Math.round(performance.now() - t0);
+  try {
+    const j = JSON.parse(text);
+    perfLog.push({ a: payload.action, total: total, srv: j._srv ? j._srv.ms : null, inst: j._srv ? j._srv.inst : null, bytes: text.length, at: Date.now() });
+    if (perfLog.length > 60) perfLog.shift();
+    return j;
+  }
   catch (e) { throw new Error('เซิร์ฟเวอร์ตอบกลับผิดรูปแบบ ตรวจสอบการ Deploy ของ Apps Script (Web app / Who has access: Anyone)'); }
 }
 
@@ -775,6 +800,57 @@ async function pushInit(info) {
 }
 $('tbBell').onclick = () => { if (push.on) { if (confirm('ปิดการแจ้งเตือนบนเครื่องนี้?')) pushDisable(); } else pushEnable(true); };
 
+
+/* ---------- ตรวจความเร็ว (เมนู "ตรวจความเร็ว") ---------- */
+function median(a) { if (!a.length) return null; const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; }
+function perfRender() {
+  const box = $('perfBody'); if (!box) return;
+  const rows = perfLog.filter(x => x.srv != null);
+  const net = rows.map(x => x.total - x.srv);
+  const pings = perfLog.filter(x => x.a === 'ping').map(x => x.total);
+  let h = '';
+  if (pings.length) h += '<div class="pf-sum"><b>เครือข่ายล้วนๆ (ping)</b> กลาง ' + median(pings) + ' ms · เร็วสุด ' + Math.min(...pings) + ' · ช้าสุด ' + Math.max(...pings) + ' (' + pings.length + ' ครั้ง)</div>';
+  if (rows.length) {
+    const real = rows.filter(x => x.a !== 'ping');
+    h += '<div class="pf-sum"><b>คำขอข้อมูลจริง</b> ' + real.length + ' ครั้ง · รวมเฉลี่ยกลาง ' + (median(real.map(x => x.total)) || '-') + ' ms · เซิร์ฟเวอร์ทำงาน ' + (median(real.map(x => x.srv)) || '-') + ' ms · ส่วนที่เหลือ (เดินทาง/redirect) ' + (median(real.map(x => x.total - x.srv)) || '-') + ' ms</div>';
+    const ms = median(real.map(x => x.srv)), mt = median(real.map(x => x.total));
+    if (ms != null && mt) {
+      const share = Math.round(ms / mt * 100);
+      h += '<div class="pf-verdict">' + (share >= 60 ? 'เวลาส่วนใหญ่ (' + share + '%) หมดไปที่เซิร์ฟเวอร์/การอ่านชีต → ควรลดงานฝั่ง Apps Script' : 'เวลาส่วนใหญ่ (' + (100 - share) + '%) หมดไปกับการเดินทางของคำขอ ไม่ใช่การประมวลผล → ควรลดจำนวนคำขอ/รวมเป็นคำขอเดียว') + '</div>';
+    }
+  }
+  h += '<table class="pf-t"><tr><th>คำสั่ง</th><th>รวม</th><th>เซิร์ฟเวอร์</th><th>เดินทาง</th><th>ขนาด</th></tr>';
+  perfLog.slice().reverse().slice(0, 30).forEach(x => {
+    const cold = x.inst === 0 ? ' ❄' : '';
+    h += '<tr><td>' + x.a + cold + '</td><td>' + x.total + '</td><td>' + (x.srv == null ? '-' : x.srv) + '</td><td>' + (x.srv == null ? '-' : x.total - x.srv) + '</td><td>' + (x.bytes / 1024).toFixed(1) + 'k</td></tr>';
+  });
+  h += '</table><div class="muted" style="margin-top:8px">หน่วย ms · ❄ = เซิร์ฟเวอร์เพิ่งเริ่มทำงานใหม่ (cold start)</div>';
+  box.innerHTML = h;
+}
+async function perfRun(kind) {
+  const btns = document.querySelectorAll('#perfPanel .pf-btn'); btns.forEach(b => b.disabled = true);
+  try {
+    for (let i = 0; i < 5; i++) {
+      if (kind === 'ping') await api({ action: 'ping' }); else await call({ action: 'status' });
+      perfRender();
+    }
+  } catch (e) { $('perfBody').insertAdjacentHTML('afterbegin', '<div class="msg err">' + e.message + '</div>'); }
+  btns.forEach(b => b.disabled = false); perfRender();
+}
+function perfOpen() {
+  let p = $('perfPanel');
+  if (!p) {
+    p = document.createElement('div'); p.id = 'perfPanel';
+    p.innerHTML = '<div class="pf-card"><div class="pf-head"><b>ตรวจความเร็ว</b><button class="sbx" id="pfClose">✕</button></div>' +
+      '<div class="pf-actions"><button class="pf-btn" data-k="ping">ทดสอบเครือข่าย (ping ×5)</button><button class="pf-btn" data-k="status">ทดสอบข้อมูลจริง (status ×5)</button></div>' +
+      '<div id="perfBody"></div></div>';
+    document.body.appendChild(p);
+    $('pfClose').onclick = () => p.classList.add('hidden');
+    p.querySelectorAll('.pf-btn').forEach(b => b.onclick = () => perfRun(b.dataset.k));
+    p.onclick = e => { if (e.target === p) p.classList.add('hidden'); };
+  }
+  p.classList.remove('hidden'); perfRender();
+}
 function sbOpen() { document.body.classList.add('sb-open'); }
 function sbClose() { document.body.classList.remove('sb-open'); }
 $('tbMenu').onclick = sbOpen; $('sbClose').onclick = sbClose; $('sbOv').onclick = sbClose;
@@ -783,6 +859,7 @@ document.querySelectorAll('#navbar .nv').forEach(b => b.onclick = () => {
   const k = b.dataset.nav;
   sbClose();
   if (k === 'logout') { $('logoutBtn').click(); return; }
+  if (k === 'perf') { perfOpen(); return; }
   if (k === 'home') { loadStatus().catch(() => show('mainView')); }
   else if (k === 'cal') openCalendar();
   else $({ leave:'leaveBtn', ot:'otBtn', pay:'payBtn', manage:'manageBtn' }[k]).click();
