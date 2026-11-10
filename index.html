@@ -558,7 +558,7 @@ async function api(payload) {
   const total = Math.round(performance.now() - t0);
   try {
     const j = JSON.parse(text);
-    perfLog.push({ a: payload.action, total: total, srv: j._srv ? j._srv.ms : null, inst: j._srv ? j._srv.inst : null, bytes: text.length, at: Date.now() });
+    perfLog.push({ a: payload.action, total: total, srv: j._srv ? j._srv.ms : null, bytes: text.length, at: Date.now() });
     if (perfLog.length > 60) perfLog.shift();
     return j;
   }
@@ -821,10 +821,9 @@ function perfRender() {
   }
   h += '<table class="pf-t"><tr><th>คำสั่ง</th><th>รวม</th><th>เซิร์ฟเวอร์</th><th>เดินทาง</th><th>ขนาด</th></tr>';
   perfLog.slice().reverse().slice(0, 30).forEach(x => {
-    const cold = x.inst === 0 ? ' ❄' : '';
-    h += '<tr><td>' + x.a + cold + '</td><td>' + x.total + '</td><td>' + (x.srv == null ? '-' : x.srv) + '</td><td>' + (x.srv == null ? '-' : x.total - x.srv) + '</td><td>' + (x.bytes / 1024).toFixed(1) + 'k</td></tr>';
+    h += '<tr><td>' + x.a + '</td><td>' + x.total + '</td><td>' + (x.srv == null ? '-' : x.srv) + '</td><td>' + (x.srv == null ? '-' : x.total - x.srv) + '</td><td>' + (x.bytes / 1024).toFixed(1) + 'k</td></tr>';
   });
-  h += '</table><div class="muted" style="margin-top:8px">หน่วย ms · ❄ = เซิร์ฟเวอร์เพิ่งเริ่มทำงานใหม่ (cold start)</div>';
+  h += '</table><div class="muted" style="margin-top:8px">หน่วย ms · เดินทาง = เวลารวม − เซิร์ฟเวอร์ทำงาน</div>';
   box.innerHTML = h;
 }
 async function perfRun(kind) {
