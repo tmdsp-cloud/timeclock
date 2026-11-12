@@ -239,6 +239,7 @@
   <button class="nv" data-nav="home"><i>🏠</i>หน้าหลัก</button>
   <button class="nv" data-nav="leave" id="navLeave"><i>📝</i>ขอลา<span class="dot hidden" id="navDot"></span></button>
   <button class="nv" data-nav="ot" id="navOt"><i>⏱</i>OT<span class="dot hidden" id="navDotOt"></span></button>
+  <button class="nv" data-nav="exp" id="navExp"><i>🚗</i>เบิกค่าเดินทาง<span class="dot hidden" id="navDotExp"></span></button>
   <button class="nv" data-nav="pay"><i>💵</i>เงินเดือน<span class="dot hidden" id="navDotPay"></span></button>
   <button class="nv" data-nav="cal"><i>📅</i>ปฏิทิน</button>
   <button class="nv" data-nav="manage" id="navManage"><i>👥</i>จัดการพนักงาน</button>
@@ -278,6 +279,7 @@
       </div>
       <button id="leaveBtn" class="menuBtn gray" style="margin-top:12px">📝 ขออนุมัติลา <span id="leaveBadge" class="badge hidden"></span></button>
       <button id="otBtn" class="menuBtn gray" style="margin-top:8px">⏱ ขอทำ OT</button>
+      <button id="expBtn" class="menuBtn gray" style="margin-top:8px">🚗 เบิกค่าเดินทาง</button>
       <button id="payBtn" class="menuBtn gray" style="margin-top:8px">💵 เงินเดือน</button>
       <button id="manageBtn" class="menuBtn gray hidden" style="margin-top:8px">👥 จัดการพนักงาน</button>
       <div class="muted" id="schedText" style="margin-top:10px"></div>
@@ -385,6 +387,60 @@
     </div>
     <div class="card hidden" id="otPaneMine"><div id="otMine"></div></div>
     <div class="card hidden" id="otPaneAppr"><div id="otAppr"></div></div>
+  </div>
+
+  <!-- เบิกค่าเดินทาง -->
+  <div id="expView" class="hidden">
+    <div class="card">
+      <div class="top">
+        <h1>เบิกค่าเดินทาง</h1>
+        <button class="link" id="expBack">← กลับ</button>
+      </div>
+      <div class="muted" id="expSup" style="margin-top:6px"></div>
+      <div class="muted" id="expSum" style="margin-top:6px"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button id="expTabNew" class="primary">ยื่นเบิก</button>
+        <button id="expTabMine" class="gray">ของฉัน</button>
+        <button id="expTabAppr" class="gray hidden">รออนุมัติ <span id="expApprCount"></span></button>
+        <button id="expTabPay" class="gray hidden">รอจ่าย <span id="expPayCount"></span></button>
+      </div>
+    </div>
+    <div class="card" id="expPaneNew">
+      <div class="muted">วันที่เดินทาง</div>
+      <input type="date" id="expDate">
+      <div class="muted">ประเภทการเดินทาง</div>
+      <select id="expMode"><option value="private">ใช้รถยนต์ส่วนตัว (คิดค่าน้ำมันตามระยะทาง)</option><option value="public">เรียกรถสาธารณะ (แท็กซี่/โบลต์/แกร็บ/ไลน์แมน)</option></select>
+      <input type="text" id="expPlace" maxlength="150" placeholder="ไปหน้างาน/ทำธุระที่ไหน (จำเป็น)" autocomplete="off">
+      <input type="text" id="expProject" maxlength="100" placeholder="โปรเจกต์ (ถ้ามี)" autocomplete="off">
+      <div id="expPrivBox">
+        <div class="muted">ระยะทางไป-กลับรวม (กิโลเมตร)</div>
+        <input type="number" id="expKm" inputmode="decimal" min="0" step="0.1" placeholder="0">
+        <div class="muted" id="expFuelText"></div>
+        <div class="muted">ค่าทางด่วน (บาท ตามจริง ถ้ามี)</div>
+        <input type="number" id="expToll" inputmode="decimal" min="0" step="0.01" placeholder="0">
+      </div>
+      <div id="expPubBox" class="hidden">
+        <div class="muted">ประเภทรถ</div>
+        <select id="expTransport"></select>
+        <div class="muted">จำนวนเงินตามบิล (บาท)</div>
+        <input type="number" id="expFare" inputmode="decimal" min="0" step="0.01" placeholder="0">
+      </div>
+      <div class="muted" id="expEvLabel" style="margin-top:6px">หลักฐาน (สลิปทางด่วน/บิล)</div>
+      <button type="button" class="gray" id="expEvBtn">📎 แนบรูปหลักฐาน</button>
+      <input type="file" id="expEvInput" accept="image/*">
+      <img id="expEvImg" class="preview hidden" alt="หลักฐาน" style="max-height:240px;object-fit:contain;background:#f3f4f6">
+      <div class="row" style="margin-top:10px"><b>รวมเบิก</b><b id="expTotal">0.00 ฿</b></div>
+      <button id="expSubmit" class="primary" style="margin-top:8px">ส่งใบเบิก</button>
+      <div id="expMsg"></div>
+    </div>
+    <div class="card hidden" id="expPaneMine"><div id="expMine"></div></div>
+    <div class="card hidden" id="expPaneAppr"><div id="expAppr"></div></div>
+    <div class="card hidden" id="expPanePay">
+      <div id="expPayBox"></div>
+    </div>
+    <div class="card hidden" id="expPanePaid"><div class="muted" style="margin-bottom:6px">จ่ายแล้วล่าสุด</div><div id="expPaid"></div></div>
   </div>
 
   <!-- จัดการพนักงาน (HR / ผู้ดูแลระบบ) -->
@@ -595,7 +651,7 @@ async function swr(payload, onData) {
 }
 // โหลดข้อมูลหน้าอื่นรอไว้เบื้องหลังหลังเข้าหน้าหลัก ให้กดเมนูแล้วเห็นทันที
 function prefetchAll() {
-  const jobs = [{ action:'leaveOverview' }, { action:'otOverview' }, { action:'payrollMine' }, { action:'calendar', year:new Date().getFullYear() }];
+  const jobs = [{ action:'leaveOverview' }, { action:'otOverview' }, { action:'expOverview' }, { action:'payrollMine' }, { action:'calendar', year:new Date().getFullYear() }];
   if (state.me && (state.me.role === 'hr' || state.me.role === 'admin')) jobs.push({ action:'listEmployees' });
   let i = 0;
   const next = () => { if (i >= jobs.length) return; const j = jobs[i++]; call(j).then(r => { memCache[cacheKey(j)] = r; try { store.set('c_' + cacheKey(j), JSON.stringify(r)); } catch (e) {} }).catch(() => {}).then(() => setTimeout(next, 400)); };
@@ -603,12 +659,12 @@ function prefetchAll() {
 }
 
 function show(id) {
-  ['loading','loginView','mainView','manageView','leaveView','otView','otReportView','payView','calView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  ['loading','loginView','mainView','manageView','leaveView','otView','expView','otReportView','payView','calView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
   document.querySelector('.wrap').classList.toggle('main', id === 'mainView');
   const inApp = !['loading','loginView'].includes(id);
   $('topbar').classList.toggle('hidden', !inApp); $('navbar').classList.toggle('hidden', !inApp); $('sbOv').classList.toggle('hidden', !inApp);
   document.body.classList.toggle('has-sb', inApp); sbClose();
-  const navOf = { mainView:'home', leaveView:'leave', otView:'ot', payView:'pay', calView:'cal', manageView:'manage', otReportView:'manage' }[id];
+  const navOf = { mainView:'home', leaveView:'leave', otView:'ot', expView:'exp', payView:'pay', calView:'cal', manageView:'manage', otReportView:'manage' }[id];
   document.querySelectorAll('#navbar .nv').forEach(b => b.classList.toggle('on', b.dataset.nav === navOf));
   window.scrollTo(0, 0);
 }
@@ -652,10 +708,10 @@ async function loadStatus() {
   $('leaveBadge').textContent = ap + ' รออนุมัติ';
   $('leaveBadge').classList.toggle('hidden', !ap);
   const pc = r.pending || { leave: ap, ot: 0, pay: 0 };
-  [['navDot', pc.leave], ['navDotOt', pc.ot], ['navDotPay', pc.pay]].forEach(x => {
+  [['navDot', pc.leave], ['navDotOt', pc.ot], ['navDotPay', pc.pay], ['navDotExp', pc.exp || 0]].forEach(x => {
     const d = $(x[0]); d.textContent = x[1] > 9 ? '9+' : (x[1] || ''); d.classList.toggle('hidden', !x[1]);
   });
-  const tot = (pc.leave || 0) + (pc.ot || 0) + (pc.pay || 0);
+  const tot = (pc.leave || 0) + (pc.ot || 0) + (pc.pay || 0) + (pc.exp || 0);
   $('tbMenuDot').textContent = tot > 9 ? '9+' : (tot || ''); $('tbMenuDot').classList.toggle('hidden', !tot);
   $('sbName').textContent = r.employee.name;
   $('sbSub').textContent = r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
@@ -861,7 +917,7 @@ document.querySelectorAll('#navbar .nv').forEach(b => b.onclick = () => {
   if (k === 'perf') { perfOpen(); return; }
   if (k === 'home') { loadStatus().catch(() => show('mainView')); }
   else if (k === 'cal') openCalendar();
-  else $({ leave:'leaveBtn', ot:'otBtn', pay:'payBtn', manage:'manageBtn' }[k]).click();
+  else $({ leave:'leaveBtn', ot:'otBtn', exp:'expBtn', pay:'payBtn', manage:'manageBtn' }[k]).click();
 });
 $('logoutBtn').onclick = () => {
   if (push.token) { api({ action:'pushUnregister', token:store.get('token'), fcmToken:push.token }).catch(() => {}); push.token = null; push.on = false; }
@@ -1815,6 +1871,226 @@ $('otSubmit').onclick = async () => {
     await loadOt();
   } catch (e) { setMsg($('otMsg'), e.message, 'err'); }
   finally { $('otSubmit').disabled = false; }
+};
+
+/* ---------- เบิกค่าเดินทาง ---------- */
+const EXP_BADGE = { pending:'', approved:'hr', paid:'hr', rejected:'off', cancelled:'off' };
+const expState = { photo:null, data:null };
+function expTab(name) {
+  [['New','expPaneNew','expTabNew'],['Mine','expPaneMine','expTabMine'],['Appr','expPaneAppr','expTabAppr'],['Pay','expPanePay','expTabPay']].forEach(a => {
+    $(a[1]).classList.toggle('hidden', a[0] !== name);
+    $(a[2]).className = a[0] === name ? 'primary' : 'gray';
+  });
+  $('expPanePaid').classList.toggle('hidden', name !== 'Pay');
+}
+$('expTabNew').onclick = () => expTab('New');
+$('expTabMine').onclick = () => expTab('Mine');
+$('expTabAppr').onclick = () => expTab('Appr');
+$('expTabPay').onclick = () => expTab('Pay');
+$('expBack').onclick = () => { loadStatus().catch(() => show('mainView')); };
+$('expBtn').onclick = async () => { show('expView'); expTab('New'); setMsg($('expMsg'), ''); await loadExp(); };
+const fm2 = n => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function expCalc() {
+  const priv = $('expMode').value === 'private';
+  $('expPrivBox').classList.toggle('hidden', !priv);
+  $('expPubBox').classList.toggle('hidden', priv);
+  const rate = expState.data ? expState.data.fuelRate : 8;
+  const km = Number($('expKm').value) || 0, toll = Number($('expToll').value) || 0, fare = Number($('expFare').value) || 0;
+  const fuel = Math.round(km * rate * 100) / 100;
+  $('expFuelText').textContent = km > 0 ? 'ค่าน้ำมัน ' + km + ' กม. × ' + rate + ' บาท = ' + fm2(fuel) + ' บาท' : 'ค่าน้ำมันคิดให้อัตโนมัติ ' + rate + ' บาทต่อกิโลเมตร';
+  $('expTotal').textContent = fm2(priv ? fuel + toll : fare) + ' ฿';
+  $('expEvLabel').textContent = priv ? 'หลักฐานค่าทางด่วน (จำเป็นถ้ามีค่าทางด่วน)' : 'หลักฐาน: รูปบิล/ใบเสร็จ (จำเป็น)';
+}
+['expMode','expKm','expToll','expFare'].forEach(id => { $(id).oninput = $(id).onchange = expCalc; });
+$('expEvBtn').onclick = () => $('expEvInput').click();
+$('expEvInput').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try { expState.photo = await compress(f, 1100, 0.72); $('expEvImg').src = expState.photo; $('expEvImg').classList.remove('hidden'); $('expEvBtn').textContent = '📎 เปลี่ยนรูปหลักฐาน'; }
+  catch (err) { setMsg($('expMsg'), 'อ่านรูปไม่สำเร็จ กรุณาเลือกรูปใหม่', 'err'); }
+};
+function expResetForm() {
+  ['expPlace','expProject','expKm','expToll','expFare'].forEach(id => { $(id).value = ''; });
+  expState.photo = null; $('expEvImg').classList.add('hidden'); $('expEvBtn').textContent = '📎 แนบรูปหลักฐาน'; expCalc();
+}
+async function loadExp() {
+  try {
+    await swr({ action:'expOverview' }, (r, cached) => {
+      expState.data = r;
+      $('expSup').textContent = r.supervisor ? 'ผู้อนุมัติ: ' + r.supervisor.name + ' (' + r.supervisor.code + ')' : '⚠ ยังไม่ได้ระบุหัวหน้างาน ติดต่อ HR ก่อนยื่นเบิก';
+      $('expSum').textContent = 'รออนุมัติ ' + fm2(r.sum.pending) + ' ฿ · รอจ่าย ' + fm2(r.sum.waiting) + ' ฿ · จ่ายแล้วเดือนนี้ ' + fm2(r.sum.paid) + ' ฿';
+      if (!$('expDate').value) $('expDate').value = r.today;
+      const sel = $('expTransport');
+      if (!sel.options.length) r.transports.forEach(t => { const o = document.createElement('option'); o.value = o.textContent = t; sel.appendChild(o); });
+      expCalc();
+      renderExpMine(r.mine);
+      $('expTabAppr').classList.toggle('hidden', !r.canApprove);
+      $('expApprCount').textContent = r.approvals.length ? '(' + r.approvals.length + ')' : '';
+      renderExpAppr(r.approvals);
+      $('expTabPay').classList.toggle('hidden', !r.canPay);
+      $('expPayCount').textContent = r.payQueue.length ? '(' + r.payQueue.length + ')' : '';
+      renderExpPay(r.payQueue, r.paidRecent);
+    });
+  } catch (e) {
+    if (e.code === 'AUTH') return;
+    setMsg($('expMsg'), e.message + ' (หากเพิ่งอัปเดต ตรวจว่า Deploy Apps Script เวอร์ชันใหม่ และรัน setup แล้ว)', 'err');
+  }
+}
+function expDesc(r) {
+  const parts = [];
+  if (r.mode === 'private') {
+    parts.push('รถส่วนตัว ' + r.km + ' กม. × ' + r.rate + ' = ' + fm2(r.fuel) + ' ฿');
+    if (r.toll) parts.push('ทางด่วน ' + fm2(r.toll) + ' ฿');
+  } else parts.push(r.transport + ' ' + fm2(r.fare) + ' ฿');
+  return parts.join(' · ');
+}
+// แสดงรูปหลักฐาน/สลิป (โหลดจากหลังบ้านเมื่อกดดู)
+async function expShowPhoto(id, kind, btn) {
+  const old = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังโหลด...'; }
+  try {
+    const r = await call({ action:'expPhoto', id:id, kind:kind });
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:99;display:flex;align-items:center;justify-content:center;padding:16px';
+    const im = document.createElement('img'); im.src = r.dataUrl; im.style.cssText = 'max-width:100%;max-height:100%;border-radius:12px;background:#fff';
+    ov.appendChild(im); ov.onclick = () => ov.remove(); document.body.appendChild(ov);
+  } catch (e) { alert(e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = old; } }
+}
+function expPhotoBtn(id, kind, text) {
+  const b = document.createElement('button'); b.className = 'link'; b.textContent = text;
+  b.onclick = () => expShowPhoto(id, kind, b); return b;
+}
+function expHead(r, withName) {
+  const left = document.createElement('div');
+  const n = document.createElement('div'); n.className = 'nm';
+  n.textContent = (withName ? r.name + ' · ' : '') + thDate(r.date) + ' · ' + fm2(r.total) + ' ฿';
+  const m = document.createElement('div'); m.className = 'muted'; m.textContent = r.place + (r.project ? ' · โปรเจกต์ ' + r.project : '');
+  const d = document.createElement('div'); d.className = 'muted'; d.textContent = expDesc(r);
+  left.append(n, m, d);
+  return left;
+}
+function renderExpMine(list) {
+  const box = $('expMine'); box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="muted">ยังไม่มีใบเบิก</div>'; return; }
+  list.forEach(r => {
+    const d = document.createElement('div'); d.className = 'emp';
+    const left = expHead(r, false);
+    if (r.status === 'rejected' && r.note) { const o = document.createElement('div'); o.className = 'muted'; o.style.color = '#b4232a'; o.textContent = 'เหตุผลที่ไม่อนุมัติ: ' + r.note; left.appendChild(o); }
+    if (r.status === 'paid') { const o = document.createElement('div'); o.className = 'muted'; o.textContent = 'จ่ายเมื่อ ' + r.paidAt + (r.payNote ? ' · ' + r.payNote : ''); left.appendChild(o); }
+    const links = document.createElement('div');
+    if (r.hasEvidence) links.appendChild(expPhotoBtn(r.id, 'evidence', 'ดูหลักฐาน'));
+    if (r.hasSlip) links.appendChild(expPhotoBtn(r.id, 'slip', '🧾 ดูสลิปการจ่าย'));
+    if (links.children.length) left.appendChild(links);
+    const right = document.createElement('div'); right.className = 'badges';
+    addBadge(right, r.statusLabel, EXP_BADGE[r.status]);
+    if (r.status === 'pending') {
+      const x = document.createElement('button'); x.className = 'link'; x.textContent = 'ยกเลิก';
+      x.onclick = async () => {
+        if (!confirm('ยกเลิกใบเบิกนี้?')) return;
+        try { await call({ action:'expCancel', id:r.id }); await loadExp(); } catch (e) { setMsg($('expMsg'), e.message, 'err'); }
+      };
+      right.appendChild(x);
+    }
+    d.append(left, right); box.appendChild(d);
+  });
+}
+function renderExpAppr(list) {
+  const box = $('expAppr'); box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="muted">ไม่มีใบเบิกรออนุมัติ</div>'; return; }
+  list.forEach(r => {
+    const d = document.createElement('div'); d.style.cssText = 'padding:10px 0;border-bottom:1px solid #e5e7eb';
+    d.appendChild(expHead(r, true));
+    if (r.hasEvidence) d.appendChild(expPhotoBtn(r.id, 'evidence', 'ดูหลักฐาน'));
+    const note = document.createElement('input'); note.type = 'text'; note.maxLength = 200; note.placeholder = 'หมายเหตุ (จำเป็นเมื่อไม่อนุมัติ)';
+    const ok = document.createElement('button'); ok.className = 'primary'; ok.textContent = '✔ อนุมัติ';
+    const no = document.createElement('button'); no.className = 'danger'; no.style.marginTop = '8px'; no.textContent = '✖ ไม่อนุมัติ';
+    const act = async dec => {
+      ok.disabled = no.disabled = true;
+      try { await call({ action:'expDecide', id:r.id, decision:dec, note:note.value.trim() }); await loadExp(); }
+      catch (e) { setMsg($('expMsg'), e.message, 'err'); ok.disabled = no.disabled = false; }
+    };
+    ok.onclick = () => act('approve'); no.onclick = () => act('reject');
+    d.append(note, ok, no); box.appendChild(d);
+  });
+}
+let expPaySlip = null;
+function renderExpPay(queue, paid) {
+  const box = $('expPayBox'); box.innerHTML = '';
+  const chosen = {};
+  const total = () => queue.filter(r => chosen[r.id]).reduce((a, r) => a + r.total, 0);
+  if (!queue.length) box.innerHTML = '<div class="muted">ไม่มีใบเบิกรอจ่าย</div>';
+  else {
+    const sum = document.createElement('div'); sum.className = 'row'; sum.style.cssText = 'margin:6px 0';
+    const lab = document.createElement('b'); const amt = document.createElement('b');
+    const upd = () => { const n = queue.filter(r => chosen[r.id]).length; lab.textContent = 'เลือก ' + n + '/' + queue.length + ' ใบ'; amt.textContent = fm2(total()) + ' ฿'; };
+    sum.append(lab, amt);
+    const all = document.createElement('button'); all.className = 'gray'; all.textContent = 'เลือกทั้งหมด / ล้างที่เลือก';
+    box.append(all, sum);
+    const boxes = [];
+    queue.forEach(r => {
+      const d = document.createElement('label'); d.className = 'chk'; d.style.cssText = 'align-items:flex-start;border-bottom:1px solid #e5e7eb;padding-bottom:10px';
+      const c = document.createElement('input'); c.type = 'checkbox';
+      c.onchange = () => { chosen[r.id] = c.checked; upd(); }; boxes.push(c);
+      const t = expHead(r, true);
+      if (r.hasEvidence) { const b = expPhotoBtn(r.id, 'evidence', 'ดูหลักฐาน'); b.onclick = ev => { ev.preventDefault(); expShowPhoto(r.id, 'evidence', b); }; t.appendChild(b); }
+      d.append(c, t); box.appendChild(d);
+    });
+    all.onclick = () => { const on = !boxes.every(b => b.checked); boxes.forEach((b, i) => { b.checked = on; chosen[queue[i].id] = on; }); upd(); };
+    upd();
+    const slipBtn = document.createElement('button'); slipBtn.className = 'gray'; slipBtn.textContent = '📎 แนบสลิปการโอนเงิน (จำเป็น)';
+    const slipIn = document.createElement('input'); slipIn.type = 'file'; slipIn.accept = 'image/*';
+    const slipImg = document.createElement('img'); slipImg.className = 'preview hidden'; slipImg.style.cssText = 'max-height:240px;object-fit:contain;background:#f3f4f6';
+    expPaySlip = null;
+    slipBtn.onclick = () => slipIn.click();
+    slipIn.onchange = async e => {
+      const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+      try { expPaySlip = await compress(f, 1100, 0.72); slipImg.src = expPaySlip; slipImg.classList.remove('hidden'); slipBtn.textContent = '📎 เปลี่ยนสลิป'; }
+      catch (err) { setMsg($('expMsg'), 'อ่านรูปสลิปไม่สำเร็จ', 'err'); }
+    };
+    const pnote = document.createElement('input'); pnote.type = 'text'; pnote.maxLength = 200; pnote.placeholder = 'หมายเหตุการจ่าย (ถ้ามี)';
+    const pay = document.createElement('button'); pay.className = 'primary'; pay.textContent = '✔ จ่ายแล้ว (ใบที่เลือกใช้สลิปใบเดียวกัน)';
+    pay.onclick = async () => {
+      const ids = queue.filter(r => chosen[r.id]).map(r => r.id);
+      if (!ids.length) return setMsg($('expMsg'), 'กรุณาเลือกใบเบิกที่จะจ่าย', 'err');
+      if (!expPaySlip) return setMsg($('expMsg'), 'กรุณาแนบสลิปการโอนเงิน', 'err');
+      if (!confirm('ยืนยันจ่าย ' + ids.length + ' ใบ รวม ' + fm2(total()) + ' บาท?')) return;
+      pay.disabled = true; setMsg($('expMsg'), '');
+      try {
+        const r = await call({ action:'expPay', ids:ids, slip:expPaySlip, note:pnote.value.trim() });
+        expPaySlip = null; setMsg($('expMsg'), 'บันทึกจ่ายแล้ว ' + r.count + ' ใบ รวม ' + fm2(r.total) + ' ฿ (แจ้งพนักงานแล้ว)', 'good'); await loadExp();
+      } catch (e) { setMsg($('expMsg'), e.message, 'err'); }
+      finally { pay.disabled = false; }
+    };
+    box.append(slipBtn, slipIn, slipImg, pnote, pay);
+  }
+  const pb = $('expPaid'); pb.innerHTML = '';
+  if (!paid.length) pb.innerHTML = '<div class="muted">ยังไม่มีรายการ</div>';
+  paid.forEach(r => {
+    const d = document.createElement('div'); d.className = 'emp';
+    const left = expHead(r, true);
+    const o = document.createElement('div'); o.className = 'muted'; o.textContent = 'จ่ายเมื่อ ' + r.paidAt + ' โดย ' + r.paidBy; left.appendChild(o);
+    if (r.hasSlip) left.appendChild(expPhotoBtn(r.id, 'slip', '🧾 ดูสลิป'));
+    d.appendChild(left); pb.appendChild(d);
+  });
+}
+$('expSubmit').onclick = async () => {
+  const priv = $('expMode').value === 'private';
+  const body = { action:'expSubmit', date:$('expDate').value, mode:$('expMode').value, place:$('expPlace').value.trim(), project:$('expProject').value.trim(),
+    km:$('expKm').value, toll:$('expToll').value, transport:$('expTransport').value, fare:$('expFare').value, evidence:expState.photo };
+  if (!body.date) return setMsg($('expMsg'), 'กรุณาเลือกวันที่เดินทาง', 'err');
+  if (!body.place) return setMsg($('expMsg'), 'กรุณาระบุสถานที่ที่ไปหน้างาน/ทำธุระ', 'err');
+  if (priv && !(Number(body.km) > 0)) return setMsg($('expMsg'), 'กรุณากรอกระยะทาง (กิโลเมตร)', 'err');
+  if (priv && Number(body.toll) > 0 && !body.evidence) return setMsg($('expMsg'), 'ค่าทางด่วนต้องแนบรูปหลักฐาน', 'err');
+  if (!priv && !(Number(body.fare) > 0)) return setMsg($('expMsg'), 'กรุณากรอกจำนวนเงินตามบิล', 'err');
+  if (!priv && !body.evidence) return setMsg($('expMsg'), 'ต้องแนบรูปบิล/ใบเสร็จ', 'err');
+  $('expSubmit').disabled = true; setMsg($('expMsg'), '');
+  try {
+    const r = await call(body);
+    setMsg($('expMsg'), 'ส่งใบเบิกแล้ว ' + fm2(r.total) + ' ฿ รอหัวหน้างานอนุมัติ', 'good');
+    expResetForm(); await loadExp();
+  } catch (e) { setMsg($('expMsg'), e.message, 'err'); }
+  finally { $('expSubmit').disabled = false; }
 };
 
 /* ---------- สรุป OT รายเดือน ---------- */
