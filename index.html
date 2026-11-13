@@ -870,7 +870,7 @@ $('empCode').addEventListener('input', () => {
 
 
 /* ---------- แจ้งเตือนบนมือถือ (FCM) ---------- */
-const push = { info:null, sdk:null, reg:null, token:null, on:false, checking:true };
+const push = { info:null, sdk:null, sdkP:null, reg:null, token:null, lastToken:null, on:false, checking:true };
 function pushSupported() { return 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window; }
 function pushLabel() { const u = navigator.userAgent; return (/iPhone|iPad/.test(u) ? 'iOS' : /Android/.test(u) ? 'Android' : 'เว็บ') + ' ' + new Date().toLocaleDateString('th-TH'); }
 function pushPaint() {
@@ -885,11 +885,15 @@ function pushPaint() {
   b.title = tx; b.setAttribute('aria-label', tx);
 }
 function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('โหลดไม่สำเร็จ')); document.head.appendChild(s); }); }
-async function pushGetToken(interactive) {
-  const c = push.info.config;
-  if (!push.sdk) {
-    await loadScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
-    await loadScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+function loadScripts(urls) { // โหลดพร้อมกัน แต่รันตามลำดับ (async=false)
+  return Promise.all(urls.map(src => new Promise((ok, no) => { const e = document.createElement('script'); e.src = src; e.async = false; e.onload = ok; e.onerror = () => no(new Error('โหลดไม่สำเร็จ')); document.head.appendChild(e); })));
+}
+// เตรียม Firebase SDK + service worker ไว้ล่วงหน้า (ครั้งเดียว) เพื่อให้เปิดแจ้งเตือนตอนกดแล้วเร็ว
+function pushSdk_() {
+  if (push.sdkP) return push.sdkP;
+  push.sdkP = (async () => {
+    const c = push.info.config;
+    await loadScripts(['https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js', 'https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js']);
     firebase.initializeApp(c);
     push.sdk = firebase.messaging();
     push.sdk.onMessage(p => {
@@ -897,9 +901,14 @@ async function pushGetToken(interactive) {
       toastMsg((n.title || '') + (n.body ? ' — ' + n.body : ''));
       loadStatus().catch(() => {});
     });
-  }
-  if (!push.reg) push.reg = await navigator.serviceWorker.register('sw.js?k=' + encodeURIComponent(c.apiKey) + '&p=' + encodeURIComponent(c.projectId) + '&s=' + encodeURIComponent(c.messagingSenderId) + '&a=' + encodeURIComponent(c.appId));
-  await navigator.serviceWorker.ready;
+    push.reg = await navigator.serviceWorker.register('sw.js?k=' + encodeURIComponent(c.apiKey) + '&p=' + encodeURIComponent(c.projectId) + '&s=' + encodeURIComponent(c.messagingSenderId) + '&a=' + encodeURIComponent(c.appId));
+    await navigator.serviceWorker.ready;
+  })();
+  push.sdkP.catch(() => { push.sdkP = null; });
+  return push.sdkP;
+}
+async function pushGetToken(interactive) {
+  await pushSdk_();
   return push.sdk.getToken({ vapidKey: push.info.vapidKey, serviceWorkerRegistration: push.reg });
 }
 function toastMsg(t) {
@@ -915,19 +924,29 @@ async function pushEnable_(interactive) {
   if (!pushSupported()) { if (interactive === true) alert('เครื่อง/เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน\nบน iPhone ต้องเพิ่มแอปลงหน้าจอโฮม (Add to Home Screen) ก่อน และใช้ iOS 16.4 ขึ้นไป'); return; }
   if (Notification.permission === 'denied') { if (interactive === true) alert('การแจ้งเตือนถูกบล็อก กรุณาเปิดอนุญาตในการตั้งค่าของเบราว์เซอร์/แอป'); return; }
   if (Notification.permission !== 'granted') { if (!interactive) return; if (await Notification.requestPermission() !== 'granted') return; }
+  if (push.lastToken && interactive) { // มีโทเค็นเตรียมไว้แล้ว: ขึ้นเขียวทันที แล้วลงทะเบียนเบื้องหลัง (ไม่สำเร็จค่อยเปลี่ยนกลับ)
+    const t = push.lastToken; push.token = t; push.on = true; try { localStorage.setItem('pushOn', '1'); } catch (e) {}
+    push.checking = false; pushPaint();
+    api({ action:'pushRegister', token:store.get('token'), fcmToken:t, label:pushLabel() }).then(r => {
+      if (!r.ok) throw new Error(r.error || 'เปิดแจ้งเตือนไม่สำเร็จ');
+    }).catch(e => { push.on = false; push.token = null; try { localStorage.setItem('pushOn', '0'); } catch (x) {} pushPaint(); if (interactive === true) alert('เปิดแจ้งเตือนไม่สำเร็จ: ' + e.message); });
+    return;
+  }
   try {
     const t = await pushGetToken(interactive);
     if (!t) return;
+    push.lastToken = t;
     const r = await api({ action:'pushRegister', token:store.get('token'), fcmToken:t, label:pushLabel() });
     if (r.ok) { push.token = t; push.on = true; try { localStorage.setItem('pushOn', '1'); } catch (e) {} }
     else if (interactive === true) alert(r.error || 'เปิดแจ้งเตือนไม่สำเร็จ');
   } catch (e) { if (interactive === true) alert('เปิดแจ้งเตือนไม่สำเร็จ: ' + e.message); }
   pushPaint();
 }
-async function pushDisable() {
-  try { if (push.token) await api({ action:'pushUnregister', token:store.get('token'), fcmToken:push.token }); if (push.sdk) await push.sdk.deleteToken(); } catch (e) {}
-  push.token = null; push.on = false; try { localStorage.setItem('pushOn', '0'); } catch (e) {}
+function pushDisable() { // ขึ้นแดงทันที แล้วยกเลิกการลงทะเบียนเบื้องหลัง (เก็บโทเค็นไว้ เปิดใหม่จะได้เร็ว)
+  const t = push.token;
+  push.token = null; push.on = false; push.checking = false; try { localStorage.setItem('pushOn', '0'); } catch (e) {}
   pushPaint();
+  if (t) api({ action:'pushUnregister', token:store.get('token'), fcmToken:t }).catch(() => {});
 }
 // ขอสิทธิ์แจ้งเตือนอัตโนมัติ "ครั้งแรกที่ล็อกอินบนเครื่องนี้" เท่านั้น (จำด้วย pushAsked) ถ้าปฏิเสธจะไม่ถามซ้ำ กระดิ่งสีแดงบอกว่าปิดอยู่
 function pushHint(t) { if (push.hinted) return; push.hinted = true; toastMsg(t); }
@@ -943,6 +962,7 @@ async function pushInit(info) {
     return;
   }
   const perm = Notification.permission;
+  if (perm === 'granted') pushSdk_().then(() => push.lastToken ? 0 : push.sdk.getToken({ vapidKey: push.info.vapidKey, serviceWorkerRegistration: push.reg })).then(t => { if (t) push.lastToken = t; }).catch(() => {});
   if (perm === 'granted' && want !== '0') { if (!push.on) await pushEnable(false); else done(); return; }
   if (perm === 'granted') return done();            // ผู้ใช้ปิดเองไว้ ไม่เปิดให้ใหม่
   if (perm === 'denied') { done(); pushHint('การแจ้งเตือนปิดอยู่ (กระดิ่งสีแดง) เบราว์เซอร์บล็อกไว้ ต้องปลดบล็อกในการตั้งค่าของเบราว์เซอร์/แอป'); return; }
