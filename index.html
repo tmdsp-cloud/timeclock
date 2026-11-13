@@ -226,7 +226,7 @@
   <button class="round ham" id="tbMenu" aria-label="เปิดเมนู"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="dot hidden" id="tbMenuDot"></span></button>
   <div class="logo"><img src="logo-mark.png" alt="Tmd" class="logoimg"></div>
   <div class="who"><span id="tbName">TMDSP_HR</span><small id="tbSub">TMDSP_HR</small></div>
-  <button class="round hidden" id="tbBell" title="แจ้งเตือนบนมือถือ" aria-label="แจ้งเตือน"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></button>
+  <button class="round hidden" id="tbBell" title="แจ้งเตือนบนมือถือ" aria-label="แจ้งเตือน"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/><line id="bellSlash" x1="3" y1="3" x2="21" y2="21" style="display:none"/></svg></button>
 
 </div>
 <div class="sbov hidden" id="sbOv"></div>
@@ -870,14 +870,19 @@ $('empCode').addEventListener('input', () => {
 
 
 /* ---------- แจ้งเตือนบนมือถือ (FCM) ---------- */
-const push = { info:null, sdk:null, reg:null, token:null, on:false };
+const push = { info:null, sdk:null, reg:null, token:null, on:false, checking:true };
 function pushSupported() { return 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window; }
 function pushLabel() { const u = navigator.userAgent; return (/iPhone|iPad/.test(u) ? 'iOS' : /Android/.test(u) ? 'Android' : 'เว็บ') + ' ' + new Date().toLocaleDateString('th-TH'); }
 function pushPaint() {
   const b = $('tbBell'); if (!b) return;
   b.classList.toggle('hidden', !(push.info && push.info.enabled));
-  b.style.opacity = push.on ? '1' : '.55';
-  b.title = push.on ? 'แจ้งเตือนเปิดอยู่ (แตะเพื่อปิด)' : 'เปิดแจ้งเตือนบนมือถือ';
+  // เทา = กำลังตรวจสถานะ, เขียว = เปิดอยู่, แดง + เส้นขีดทับ = ปิดอยู่ (แยกได้แม้ไม่เห็นสี)
+  const st = push.checking && !push.on ? 'check' : (push.on ? 'on' : 'off');
+  b.style.opacity = '1';
+  b.style.color = { check:'#9aa3a0', on:'#16a34a', off:'#dc2626' }[st];
+  const sl = $('bellSlash'); if (sl) sl.style.display = st === 'off' ? '' : 'none';
+  const tx = { check:'กำลังตรวจสถานะแจ้งเตือน', on:'แจ้งเตือนเปิดอยู่ (แตะเพื่อปิด)', off:'แจ้งเตือนปิดอยู่ (แตะเพื่อเปิด)' }[st];
+  b.title = tx; b.setAttribute('aria-label', tx);
 }
 function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('โหลดไม่สำเร็จ')); document.head.appendChild(s); }); }
 async function pushGetToken(interactive) {
@@ -903,16 +908,20 @@ function toastMsg(t) {
   d.textContent = t; d.style.display = 'block'; clearTimeout(d._t); d._t = setTimeout(() => d.style.display = 'none', 6000);
 }
 async function pushEnable(interactive) {
-  if (!pushSupported()) { if (interactive) alert('เครื่อง/เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน\nบน iPhone ต้องเพิ่มแอปลงหน้าจอโฮม (Add to Home Screen) ก่อน และใช้ iOS 16.4 ขึ้นไป'); return; }
-  if (Notification.permission === 'denied') { if (interactive) alert('การแจ้งเตือนถูกบล็อก กรุณาเปิดอนุญาตในการตั้งค่าของเบราว์เซอร์/แอป'); return; }
+  push.checking = true; pushPaint();
+  try { await pushEnable_(interactive); } finally { push.checking = false; pushPaint(); }
+}
+async function pushEnable_(interactive) {
+  if (!pushSupported()) { if (interactive === true) alert('เครื่อง/เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน\nบน iPhone ต้องเพิ่มแอปลงหน้าจอโฮม (Add to Home Screen) ก่อน และใช้ iOS 16.4 ขึ้นไป'); return; }
+  if (Notification.permission === 'denied') { if (interactive === true) alert('การแจ้งเตือนถูกบล็อก กรุณาเปิดอนุญาตในการตั้งค่าของเบราว์เซอร์/แอป'); return; }
   if (Notification.permission !== 'granted') { if (!interactive) return; if (await Notification.requestPermission() !== 'granted') return; }
   try {
     const t = await pushGetToken(interactive);
     if (!t) return;
     const r = await api({ action:'pushRegister', token:store.get('token'), fcmToken:t, label:pushLabel() });
     if (r.ok) { push.token = t; push.on = true; try { localStorage.setItem('pushOn', '1'); } catch (e) {} }
-    else if (interactive) alert(r.error || 'เปิดแจ้งเตือนไม่สำเร็จ');
-  } catch (e) { if (interactive) alert('เปิดแจ้งเตือนไม่สำเร็จ: ' + e.message); }
+    else if (interactive === true) alert(r.error || 'เปิดแจ้งเตือนไม่สำเร็จ');
+  } catch (e) { if (interactive === true) alert('เปิดแจ้งเตือนไม่สำเร็จ: ' + e.message); }
   pushPaint();
 }
 async function pushDisable() {
@@ -920,15 +929,38 @@ async function pushDisable() {
   push.token = null; push.on = false; try { localStorage.setItem('pushOn', '0'); } catch (e) {}
   pushPaint();
 }
+// ขอสิทธิ์แจ้งเตือนอัตโนมัติ "ครั้งแรกที่ล็อกอินบนเครื่องนี้" เท่านั้น (จำด้วย pushAsked) ถ้าปฏิเสธจะไม่ถามซ้ำ กระดิ่งสีแดงบอกว่าปิดอยู่
+function pushHint(t) { if (push.hinted) return; push.hinted = true; toastMsg(t); }
 async function pushInit(info) {
   push.info = info || { enabled:false };
-  pushPaint();
-  if (!push.info.enabled || !pushSupported()) return;
-  let want = null; try { want = localStorage.getItem('pushOn'); } catch (e) {}
-  if (Notification.permission === 'granted' && want !== '0' && !push.on) pushEnable(false);
-  else if (Notification.permission === 'granted' && want === '0') { push.on = false; pushPaint(); }
+  push.checking = true; pushPaint();
+  const done = () => { push.checking = false; pushPaint(); };
+  if (!push.info.enabled) return done();
+  let want = null, asked = null; try { want = localStorage.getItem('pushOn'); asked = localStorage.getItem('pushAsked'); } catch (e) {}
+  if (!pushSupported()) {
+    done();
+    if (asked !== '1') { try { localStorage.setItem('pushAsked', '1'); } catch (e) {} pushHint(/iPhone|iPad/.test(navigator.userAgent) ? 'เปิดแจ้งเตือนบน iPhone: กดปุ่มแชร์ → "เพิ่มลงหน้าจอโฮม" แล้วเปิดแอปจากไอคอนนั้น (ต้องใช้ iOS 16.4 ขึ้นไป)' : 'เครื่อง/เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน (กระดิ่งสีแดง)'); }
+    return;
+  }
+  const perm = Notification.permission;
+  if (perm === 'granted' && want !== '0') { if (!push.on) await pushEnable(false); else done(); return; }
+  if (perm === 'granted') return done();            // ผู้ใช้ปิดเองไว้ ไม่เปิดให้ใหม่
+  if (perm === 'denied') { done(); pushHint('การแจ้งเตือนปิดอยู่ (กระดิ่งสีแดง) เบราว์เซอร์บล็อกไว้ ต้องปลดบล็อกในการตั้งค่าของเบราว์เซอร์/แอป'); return; }
+  // ยังไม่เคยตอบ
+  if (asked === '1') { done(); pushHint('การแจ้งเตือนปิดอยู่ (กระดิ่งสีแดง) แตะกระดิ่งเพื่อเปิด'); return; }
+  const t0 = Date.now();
+  await pushEnable('auto');
+  if (Notification.permission === 'granted') { try { localStorage.setItem('pushAsked', '1'); } catch (e) {} return; }
+  if (Date.now() - t0 < 400 && Notification.permission === 'default') {
+    // เบราว์เซอร์ไม่ยอมเด้งถามโดยไม่มีการแตะ (เช่น iPhone) → ถามตอนแตะหน้าจอครั้งแรกแทน
+    const once = () => { removeEventListener('click', once, true); if (!push.on && Notification.permission === 'default') { try { localStorage.setItem('pushAsked', '1'); } catch (e) {} pushEnable('auto'); } };
+    addEventListener('click', once, true);
+    return;
+  }
+  try { localStorage.setItem('pushAsked', '1'); } catch (e) {}
+  if (!push.on) pushHint('การแจ้งเตือนปิดอยู่ (กระดิ่งสีแดง) แตะกระดิ่งเพื่อเปิด');
 }
-$('tbBell').onclick = () => { if (push.on) { if (confirm('ปิดการแจ้งเตือนบนเครื่องนี้?')) pushDisable(); } else pushEnable(true); };
+$('tbBell').onclick = () => { if (push.checking && !push.on) return; if (push.on) { if (confirm('ปิดการแจ้งเตือนบนเครื่องนี้?')) pushDisable(); } else pushEnable(true); };
 
 
 /* ---------- ตรวจความเร็ว (เมนู "ตรวจความเร็ว") ---------- */
