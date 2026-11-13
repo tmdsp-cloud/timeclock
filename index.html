@@ -240,6 +240,7 @@
   <button class="nv" data-nav="leave" id="navLeave"><i>📝</i>ขอลา<span class="dot hidden" id="navDot"></span></button>
   <button class="nv" data-nav="ot" id="navOt"><i>⏱</i>OT<span class="dot hidden" id="navDotOt"></span></button>
   <button class="nv" data-nav="exp" id="navExp"><i>🚗</i>เบิกค่าเดินทาง<span class="dot hidden" id="navDotExp"></span></button>
+  <button class="nv" data-nav="pc" id="navPc"><i>💰</i>เบิกเงินสดย่อย<span class="dot hidden" id="navDotPc"></span></button>
   <button class="nv" data-nav="pay"><i>💵</i>เงินเดือน<span class="dot hidden" id="navDotPay"></span></button>
   <button class="nv" data-nav="cal"><i>📅</i>ปฏิทิน</button>
   <button class="nv" data-nav="manage" id="navManage"><i>👥</i>จัดการพนักงาน</button>
@@ -280,6 +281,7 @@
       <button id="leaveBtn" class="menuBtn gray" style="margin-top:12px">📝 ขออนุมัติลา <span id="leaveBadge" class="badge hidden"></span></button>
       <button id="otBtn" class="menuBtn gray" style="margin-top:8px">⏱ ขอทำ OT</button>
       <button id="expBtn" class="menuBtn gray" style="margin-top:8px">🚗 เบิกค่าเดินทาง</button>
+      <button id="pcBtn" class="menuBtn gray" style="margin-top:8px">💰 เบิกเงินสดย่อย</button>
       <button id="payBtn" class="menuBtn gray" style="margin-top:8px">💵 เงินเดือน</button>
       <button id="manageBtn" class="menuBtn gray hidden" style="margin-top:8px">👥 จัดการพนักงาน</button>
       <div class="muted" id="schedText" style="margin-top:10px"></div>
@@ -396,14 +398,13 @@
         <h1>เบิกค่าเดินทาง</h1>
         <button class="link" id="expBack">← กลับ</button>
       </div>
-      <div class="muted" id="expSup" style="margin-top:6px"></div>
+      <div class="muted" style="margin-top:6px">ส่งตรงถึงฝ่ายบัญชี (ไม่ต้องผ่านหัวหน้างาน)</div>
       <div class="muted" id="expSum" style="margin-top:6px"></div>
     </div>
     <div class="card">
       <div class="row" style="gap:8px;flex-wrap:wrap">
         <button id="expTabNew" class="primary">ยื่นเบิก</button>
         <button id="expTabMine" class="gray">ของฉัน</button>
-        <button id="expTabAppr" class="gray hidden">รออนุมัติ <span id="expApprCount"></span></button>
         <button id="expTabPay" class="gray hidden">รอจ่าย <span id="expPayCount"></span></button>
       </div>
     </div>
@@ -436,11 +437,44 @@
       <div id="expMsg"></div>
     </div>
     <div class="card hidden" id="expPaneMine"><div id="expMine"></div></div>
-    <div class="card hidden" id="expPaneAppr"><div id="expAppr"></div></div>
     <div class="card hidden" id="expPanePay">
       <div id="expPayBox"></div>
     </div>
     <div class="card hidden" id="expPanePaid"><div class="muted" style="margin-bottom:6px">จ่ายแล้วล่าสุด</div><div id="expPaid"></div></div>
+  </div>
+
+  <!-- เบิกเงินสดย่อย -->
+  <div id="pcView" class="hidden">
+    <div class="card">
+      <div class="top">
+        <h1>เบิกเงินสดย่อย</h1>
+        <button class="link" id="pcBack">← กลับ</button>
+      </div>
+      <div class="muted" style="margin-top:6px">ขอเบิกล่วงหน้า → บัญชีโอนให้ → เคลียร์ใบเสร็จให้จบภายในวันเดียวกัน</div>
+      <div class="muted" id="pcSum" style="margin-top:6px"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button id="pcTabNew" class="primary">ขอเบิก</button>
+        <button id="pcTabMine" class="gray">ของฉัน <span id="pcMineCount"></span></button>
+        <button id="pcTabQ" class="gray hidden">รออนุมัติ <span id="pcQCount"></span></button>
+        <button id="pcTabC" class="gray hidden">ตรวจเคลียร์ <span id="pcCCount"></span></button>
+        <button id="pcTabO" class="gray hidden">ภาพรวม/เติมเงิน</button>
+      </div>
+    </div>
+    <div id="pcMsg" style="padding:0 4px"></div>
+    <div class="card" id="pcPaneNew">
+      <div class="muted">จำนวนเงินที่ขอเบิก (บาท)</div>
+      <input type="number" id="pcAmount" inputmode="decimal" min="0" step="0.01" placeholder="0">
+      <input type="text" id="pcPurpose" maxlength="200" placeholder="จะนำเงินไปใช้ทำอะไร (จำเป็น)" autocomplete="off">
+      <input type="text" id="pcProject" maxlength="100" placeholder="โปรเจกต์ (ถ้ามี)" autocomplete="off">
+      <div class="muted" id="pcBlock" style="color:#b4232a"></div>
+      <button id="pcSubmit" class="primary" style="margin-top:8px">ส่งใบเบิก</button>
+    </div>
+    <div class="card hidden" id="pcPaneMine"><div id="pcMine"></div></div>
+    <div class="card hidden" id="pcPaneQ"><div id="pcQ"></div></div>
+    <div class="card hidden" id="pcPaneC"><div id="pcC"></div></div>
+    <div class="card hidden" id="pcPaneO"><div id="pcO"></div></div>
   </div>
 
   <!-- จัดการพนักงาน (HR / ผู้ดูแลระบบ) -->
@@ -659,12 +693,12 @@ function prefetchAll() {
 }
 
 function show(id) {
-  ['loading','loginView','mainView','manageView','leaveView','otView','expView','otReportView','payView','calView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  ['loading','loginView','mainView','manageView','leaveView','otView','expView','pcView','otReportView','payView','calView'].forEach(v => $(v).classList.toggle('hidden', v !== id));
   document.querySelector('.wrap').classList.toggle('main', id === 'mainView');
   const inApp = !['loading','loginView'].includes(id);
   $('topbar').classList.toggle('hidden', !inApp); $('navbar').classList.toggle('hidden', !inApp); $('sbOv').classList.toggle('hidden', !inApp);
   document.body.classList.toggle('has-sb', inApp); sbClose();
-  const navOf = { mainView:'home', leaveView:'leave', otView:'ot', expView:'exp', payView:'pay', calView:'cal', manageView:'manage', otReportView:'manage' }[id];
+  const navOf = { mainView:'home', leaveView:'leave', otView:'ot', expView:'exp', pcView:'pc', payView:'pay', calView:'cal', manageView:'manage', otReportView:'manage' }[id];
   document.querySelectorAll('#navbar .nv').forEach(b => b.classList.toggle('on', b.dataset.nav === navOf));
   window.scrollTo(0, 0);
 }
@@ -708,10 +742,11 @@ async function loadStatus() {
   $('leaveBadge').textContent = ap + ' รออนุมัติ';
   $('leaveBadge').classList.toggle('hidden', !ap);
   const pc = r.pending || { leave: ap, ot: 0, pay: 0 };
-  [['navDot', pc.leave], ['navDotOt', pc.ot], ['navDotPay', pc.pay], ['navDotExp', pc.exp || 0]].forEach(x => {
+  state.pc = pc;
+  [['navDot', pc.leave], ['navDotOt', pc.ot], ['navDotPay', pc.pay], ['navDotExp', pc.exp || 0], ['navDotPc', pc.pc || 0]].forEach(x => {
     const d = $(x[0]); d.textContent = x[1] > 9 ? '9+' : (x[1] || ''); d.classList.toggle('hidden', !x[1]);
   });
-  const tot = (pc.leave || 0) + (pc.ot || 0) + (pc.pay || 0) + (pc.exp || 0);
+  const tot = (pc.leave || 0) + (pc.ot || 0) + (pc.pay || 0) + (pc.exp || 0) + (pc.pc || 0);
   $('tbMenuDot').textContent = tot > 9 ? '9+' : (tot || ''); $('tbMenuDot').classList.toggle('hidden', !tot);
   $('sbName').textContent = r.employee.name;
   $('sbSub').textContent = r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
@@ -726,7 +761,46 @@ async function loadStatus() {
   if (!state.prefetched) { state.prefetched = true; prefetchAll(); }
   if (!state.clockStarted) { state.clockStarted = true; startClock(); }
   if (sch.required && !state.gpsStarted) { state.gpsStarted = true; startGps(); }
+  runGo().catch(() => {});
 }
+
+/* ---------- กดแจ้งเตือนแล้วไปหน้าที่เกี่ยวข้อง (?go=leave|ot|pay|exp) ---------- */
+async function runGo() {
+  const go = state.go; state.go = null;
+  if (!go) return;
+  const pc = state.pc || {};
+  if (go === 'leave') {
+    show('leaveView'); lvTab('Mine'); setMsg($('lvMsg'), ''); await loadLeave();
+    lvTab(pc.leave > 0 && !$('tabAppr').classList.contains('hidden') ? 'Appr' : 'Mine');
+  } else if (go === 'ot') {
+    show('otView'); otTab('Mine'); setMsg($('otMsg'), ''); await loadOt();
+    otTab(pc.ot > 0 && !$('otTabAppr').classList.contains('hidden') ? 'Appr' : 'Mine');
+  } else if (go === 'exp') {
+    show('expView'); expTab('Mine'); setMsg($('expMsg'), ''); await loadExp();
+    const d = expState.data || {};
+    expTab(d.canPay && d.payQueue && d.payQueue.length ? 'Pay' : 'Mine');
+  } else if (go === 'pc') {
+    show('pcView'); pcTab('Mine'); setMsg($('pcMsg'), ''); await loadPc();
+    const d = pcState.data || {};
+    if (d.canManage && d.queue && d.queue.length) pcTab('Q');
+    else if (d.canManage && d.toClose && d.toClose.length) pcTab('C');
+    else pcTab('Mine');
+  } else if (go === 'pay') {
+    show('payView'); payTab('Mine'); setMsg($('payMsg'), '');
+    if (pc.pay > 0 && !$('payTabRun').classList.contains('hidden')) { payTab('Run'); await loadPayRun(); }
+    else await loadPayMine();
+  }
+}
+function goFromUrl() {
+  try {
+    const u = new URL(location.href); const g = u.searchParams.get('go');
+    if (g) { state.go = g; u.searchParams.delete('go'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash); }
+  } catch (e) {}
+}
+goFromUrl();
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', ev => {
+  if (ev.data && ev.data.type === 'go' && ev.data.go) { state.go = ev.data.go; if (state.me) loadStatus().catch(() => {}); }
+});
 
 /* ---------- ตารางงานตามตำแหน่ง ---------- */
 function applySchedule(sc) {
@@ -917,7 +991,7 @@ document.querySelectorAll('#navbar .nv').forEach(b => b.onclick = () => {
   if (k === 'perf') { perfOpen(); return; }
   if (k === 'home') { loadStatus().catch(() => show('mainView')); }
   else if (k === 'cal') openCalendar();
-  else $({ leave:'leaveBtn', ot:'otBtn', exp:'expBtn', pay:'payBtn', manage:'manageBtn' }[k]).click();
+  else $({ leave:'leaveBtn', ot:'otBtn', exp:'expBtn', pc:'pcBtn', pay:'payBtn', manage:'manageBtn' }[k]).click();
 });
 $('logoutBtn').onclick = () => {
   if (push.token) { api({ action:'pushUnregister', token:store.get('token'), fcmToken:push.token }).catch(() => {}); push.token = null; push.on = false; }
@@ -1874,10 +1948,10 @@ $('otSubmit').onclick = async () => {
 };
 
 /* ---------- เบิกค่าเดินทาง ---------- */
-const EXP_BADGE = { pending:'', approved:'hr', paid:'hr', rejected:'off', cancelled:'off' };
+const EXP_BADGE = { pending:'', approved:'', paid:'hr', rejected:'off', cancelled:'off' };
 const expState = { photo:null, data:null };
 function expTab(name) {
-  [['New','expPaneNew','expTabNew'],['Mine','expPaneMine','expTabMine'],['Appr','expPaneAppr','expTabAppr'],['Pay','expPanePay','expTabPay']].forEach(a => {
+  [['New','expPaneNew','expTabNew'],['Mine','expPaneMine','expTabMine'],['Pay','expPanePay','expTabPay']].forEach(a => {
     $(a[1]).classList.toggle('hidden', a[0] !== name);
     $(a[2]).className = a[0] === name ? 'primary' : 'gray';
   });
@@ -1885,7 +1959,6 @@ function expTab(name) {
 }
 $('expTabNew').onclick = () => expTab('New');
 $('expTabMine').onclick = () => expTab('Mine');
-$('expTabAppr').onclick = () => expTab('Appr');
 $('expTabPay').onclick = () => expTab('Pay');
 $('expBack').onclick = () => { loadStatus().catch(() => show('mainView')); };
 $('expBtn').onclick = async () => { show('expView'); expTab('New'); setMsg($('expMsg'), ''); await loadExp(); };
@@ -1917,16 +1990,12 @@ async function loadExp() {
   try {
     await swr({ action:'expOverview' }, (r, cached) => {
       expState.data = r;
-      $('expSup').textContent = r.supervisor ? 'ผู้อนุมัติ: ' + r.supervisor.name + ' (' + r.supervisor.code + ')' : '⚠ ยังไม่ได้ระบุหัวหน้างาน ติดต่อ HR ก่อนยื่นเบิก';
-      $('expSum').textContent = 'รออนุมัติ ' + fm2(r.sum.pending) + ' ฿ · รอจ่าย ' + fm2(r.sum.waiting) + ' ฿ · จ่ายแล้วเดือนนี้ ' + fm2(r.sum.paid) + ' ฿';
+      $('expSum').textContent = 'รอจ่าย ' + fm2(r.sum.waiting) + ' ฿ · จ่ายแล้วเดือนนี้ ' + fm2(r.sum.paid) + ' ฿';
       if (!$('expDate').value) $('expDate').value = r.today;
       const sel = $('expTransport');
       if (!sel.options.length) r.transports.forEach(t => { const o = document.createElement('option'); o.value = o.textContent = t; sel.appendChild(o); });
       expCalc();
       renderExpMine(r.mine);
-      $('expTabAppr').classList.toggle('hidden', !r.canApprove);
-      $('expApprCount').textContent = r.approvals.length ? '(' + r.approvals.length + ')' : '';
-      renderExpAppr(r.approvals);
       $('expTabPay').classList.toggle('hidden', !r.canPay);
       $('expPayCount').textContent = r.payQueue.length ? '(' + r.payQueue.length + ')' : '';
       renderExpPay(r.payQueue, r.paidRecent);
@@ -1984,7 +2053,7 @@ function renderExpMine(list) {
     if (links.children.length) left.appendChild(links);
     const right = document.createElement('div'); right.className = 'badges';
     addBadge(right, r.statusLabel, EXP_BADGE[r.status]);
-    if (r.status === 'pending') {
+    if (r.status === 'approved') {
       const x = document.createElement('button'); x.className = 'link'; x.textContent = 'ยกเลิก';
       x.onclick = async () => {
         if (!confirm('ยกเลิกใบเบิกนี้?')) return;
@@ -1993,25 +2062,6 @@ function renderExpMine(list) {
       right.appendChild(x);
     }
     d.append(left, right); box.appendChild(d);
-  });
-}
-function renderExpAppr(list) {
-  const box = $('expAppr'); box.innerHTML = '';
-  if (!list.length) { box.innerHTML = '<div class="muted">ไม่มีใบเบิกรออนุมัติ</div>'; return; }
-  list.forEach(r => {
-    const d = document.createElement('div'); d.style.cssText = 'padding:10px 0;border-bottom:1px solid #e5e7eb';
-    d.appendChild(expHead(r, true));
-    if (r.hasEvidence) d.appendChild(expPhotoBtn(r.id, 'evidence', 'ดูหลักฐาน'));
-    const note = document.createElement('input'); note.type = 'text'; note.maxLength = 200; note.placeholder = 'หมายเหตุ (จำเป็นเมื่อไม่อนุมัติ)';
-    const ok = document.createElement('button'); ok.className = 'primary'; ok.textContent = '✔ อนุมัติ';
-    const no = document.createElement('button'); no.className = 'danger'; no.style.marginTop = '8px'; no.textContent = '✖ ไม่อนุมัติ';
-    const act = async dec => {
-      ok.disabled = no.disabled = true;
-      try { await call({ action:'expDecide', id:r.id, decision:dec, note:note.value.trim() }); await loadExp(); }
-      catch (e) { setMsg($('expMsg'), e.message, 'err'); ok.disabled = no.disabled = false; }
-    };
-    ok.onclick = () => act('approve'); no.onclick = () => act('reject');
-    d.append(note, ok, no); box.appendChild(d);
   });
 }
 let expPaySlip = null;
@@ -2034,6 +2084,16 @@ function renderExpPay(queue, paid) {
       c.onchange = () => { chosen[r.id] = c.checked; upd(); }; boxes.push(c);
       const t = expHead(r, true);
       if (r.hasEvidence) { const b = expPhotoBtn(r.id, 'evidence', 'ดูหลักฐาน'); b.onclick = ev => { ev.preventDefault(); expShowPhoto(r.id, 'evidence', b); }; t.appendChild(b); }
+      const rj = document.createElement('button'); rj.className = 'link'; rj.textContent = '✖ ไม่อนุมัติ';
+      rj.onclick = async ev => {
+        ev.preventDefault();
+        const why = prompt('เหตุผลที่ไม่อนุมัติ (จำเป็น) — ' + r.name + ' ' + fm2(r.total) + ' ฿');
+        if (why === null) return;
+        if (!why.trim()) return setMsg($('expMsg'), 'กรุณาระบุเหตุผลที่ไม่อนุมัติ', 'err');
+        try { await call({ action:'expReject', id:r.id, note:why.trim() }); setMsg($('expMsg'), 'บันทึกไม่อนุมัติแล้ว (แจ้งพนักงานแล้ว)', 'good'); await loadExp(); }
+        catch (e) { setMsg($('expMsg'), e.message, 'err'); }
+      };
+      t.appendChild(rj);
       d.append(c, t); box.appendChild(d);
     });
     all.onclick = () => { const on = !boxes.every(b => b.checked); boxes.forEach((b, i) => { b.checked = on; chosen[queue[i].id] = on; }); upd(); };
@@ -2087,10 +2147,310 @@ $('expSubmit').onclick = async () => {
   $('expSubmit').disabled = true; setMsg($('expMsg'), '');
   try {
     const r = await call(body);
-    setMsg($('expMsg'), 'ส่งใบเบิกแล้ว ' + fm2(r.total) + ' ฿ รอหัวหน้างานอนุมัติ', 'good');
+    setMsg($('expMsg'), 'ส่งใบเบิกแล้ว ' + fm2(r.total) + ' ฿ ถึงฝ่ายบัญชีแล้ว รอจ่าย', 'good');
     expResetForm(); await loadExp();
   } catch (e) { setMsg($('expMsg'), e.message, 'err'); }
   finally { $('expSubmit').disabled = false; }
+};
+
+/* ---------- เบิกเงินสดย่อย ---------- */
+const PC_BADGE = { requested:'', transferred:'', cleared:'', closed:'hr', rejected:'off', cancelled:'off' };
+const pcState = { data:null };
+function pcTab(name) {
+  [['New','pcPaneNew','pcTabNew'],['Mine','pcPaneMine','pcTabMine'],['Q','pcPaneQ','pcTabQ'],['C','pcPaneC','pcTabC'],['O','pcPaneO','pcTabO']].forEach(a => {
+    $(a[1]).classList.toggle('hidden', a[0] !== name);
+    $(a[2]).className = a[0] === name ? 'primary' : 'gray';
+  });
+}
+['New','Mine','Q','C','O'].forEach(n => { $('pcTab' + n).onclick = () => pcTab(n); });
+$('pcBack').onclick = () => { loadStatus().catch(() => show('mainView')); };
+$('pcBtn').onclick = async () => { show('pcView'); pcTab('New'); setMsg($('pcMsg'), ''); await loadPc(); };
+async function pcShowPhoto(id, kind, idx, btn) {
+  const old = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังโหลด...'; }
+  try {
+    const r = await call({ action:'pcPhoto', id:id, kind:kind, idx:idx || 0 });
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:99;display:flex;align-items:center;justify-content:center;padding:16px';
+    const im = document.createElement('img'); im.src = r.dataUrl; im.style.cssText = 'max-width:100%;max-height:100%;border-radius:12px;background:#fff';
+    ov.appendChild(im); ov.onclick = () => ov.remove(); document.body.appendChild(ov);
+  } catch (e) { alert(e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = old; } }
+}
+function pcLink(text, id, kind, idx) {
+  const b = document.createElement('button'); b.className = 'link'; b.textContent = text;
+  b.onclick = ev => { ev.preventDefault(); pcShowPhoto(id, kind, idx, b); }; return b;
+}
+// ปุ่มเลือกรูป: onPick(dataUrl) จะถูกเรียกเมื่อเลือกและบีบอัดสำเร็จ
+function pcPicker(label, onPick, multi) {
+  const wrap = document.createElement('div');
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'gray'; b.textContent = label;
+  const f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*'; if (multi) f.multiple = true;
+  const row = document.createElement('div');
+  b.onclick = () => f.click();
+  f.onchange = async e => {
+    const files = Array.from(e.target.files || []); e.target.value = '';
+    for (const x of files) {
+      try { const d = await compress(x, 1100, 0.72); onPick(d, row); } catch (err) { setMsg($('pcMsg'), 'อ่านรูปไม่สำเร็จ กรุณาเลือกรูปใหม่', 'err'); }
+    }
+  };
+  wrap.append(b, f, row); return wrap;
+}
+function pcThumb(src) {
+  const im = document.createElement('img'); im.src = src; im.className = 'preview'; im.style.cssText = 'max-height:120px;object-fit:contain;background:#f3f4f6;margin:4px 4px 0 0;width:auto';
+  return im;
+}
+function pcHead(r, withName) {
+  const left = document.createElement('div');
+  const n = document.createElement('div'); n.className = 'nm';
+  n.textContent = (withName ? r.name + ' · ' : '') + fm2(r.amount) + ' ฿';
+  const m = document.createElement('div'); m.className = 'muted'; m.textContent = r.purpose + (r.project ? ' · โปรเจกต์ ' + r.project : '');
+  left.append(n, m);
+  const t = document.createElement('div'); t.className = 'muted'; t.textContent = 'ยื่นเมื่อ ' + r.filed;
+  left.appendChild(t);
+  return left;
+}
+async function loadPc() {
+  try {
+    await swr({ action:'pcOverview' }, (r, cached) => {
+      pcState.data = r;
+      $('pcSum').textContent = 'เงินสดย่อยคงเหลือ ' + fm2(r.balance) + ' / วงเงิน ' + fm2(r.limit) + ' ฿';
+      $('pcBlock').textContent = r.blocked ? 'มีใบเบิกที่เลยกำหนดเคลียร์ ต้องเคลียร์ใบเก่าก่อนจึงจะขอเบิกใหม่ได้' : '';
+      $('pcMineCount').textContent = r.owe ? '(รอเคลียร์ ' + r.owe + ')' : '';
+      ['Q','C','O'].forEach(k => $('pcTab' + k).classList.toggle('hidden', !r.canManage));
+      renderPcMine(r.mine);
+      if (r.canManage) {
+        $('pcQCount').textContent = r.queue.length ? '(' + r.queue.length + ')' : '';
+        $('pcCCount').textContent = r.toClose.length ? '(' + r.toClose.length + ')' : '';
+        renderPcQ(r.queue, r.balance); renderPcC(r.toClose); renderPcO(r);
+      }
+    });
+  } catch (e) {
+    if (e.code === 'AUTH') return;
+    setMsg($('pcMsg'), e.message + ' (หากเพิ่งอัปเดต ตรวจว่า Deploy Apps Script เวอร์ชันใหม่ และรัน setup แล้ว)', 'err');
+  }
+}
+function pcClearForm(r) {
+  const box = document.createElement('div'); box.style.cssText = 'margin-top:8px;padding:10px;border:1px solid #e5e7eb;border-radius:10px';
+  const lab = document.createElement('div'); lab.className = 'muted'; lab.textContent = 'ยอดที่ใช้จริงตามใบเสร็จ (บาท)';
+  const act = document.createElement('input'); act.type = 'number'; act.inputMode = 'decimal'; act.min = '0'; act.step = '0.01'; act.placeholder = '0';
+  const prj = document.createElement('input'); prj.type = 'text'; prj.maxLength = 100; prj.placeholder = 'โปรเจกต์ (ถ้ามี)'; prj.value = r.project || '';
+  const info = document.createElement('div'); info.style.cssText = 'font-weight:600;margin:6px 0';
+  const receipts = []; let rslip = null;
+  const rcBox = pcPicker('📎 แนบรูปใบเสร็จ/บิล (เลือกได้หลายรูป สูงสุด 5)', (d, row) => {
+    if (receipts.length >= 5) return setMsg($('pcMsg'), 'แนบใบเสร็จได้ไม่เกิน 5 รูป', 'err');
+    receipts.push(d); row.appendChild(pcThumb(d));
+  }, true);
+  const slipWrap = document.createElement('div'); slipWrap.classList.add('hidden');
+  const slipBox = pcPicker('📎 แนบสลิปโอนเงินคืนบัญชี (จำเป็น)', (d, row) => { rslip = d; row.innerHTML = ''; row.appendChild(pcThumb(d)); }, false);
+  slipWrap.appendChild(slipBox);
+  const calc = () => {
+    const a = Number(act.value);
+    if (act.value === '' || !isFinite(a)) { info.textContent = ''; slipWrap.classList.add('hidden'); return; }
+    const ret = Math.round((r.amount - a) * 100) / 100;
+    if (ret < 0) { info.textContent = 'ใช้จริงเกินที่เบิกไม่ได้ (ถ้าต้องใช้เพิ่ม ให้ขอเบิกเป็นใบใหม่)'; info.style.color = '#b4232a'; slipWrap.classList.add('hidden'); }
+    else if (ret > 0) { info.textContent = 'เงินเหลือ ' + fm2(ret) + ' ฿ ต้องโอนคืนบัญชี'; info.style.color = '#b4232a'; slipWrap.classList.remove('hidden'); }
+    else { info.textContent = 'ใช้พอดี ไม่ต้องโอนคืน'; info.style.color = '#15803d'; slipWrap.classList.add('hidden'); }
+  };
+  act.oninput = calc;
+  const go = document.createElement('button'); go.className = 'primary'; go.textContent = 'ส่งเคลียร์';
+  go.onclick = async () => {
+    if (act.value === '') return setMsg($('pcMsg'), 'กรุณากรอกยอดที่ใช้จริง (ถ้าไม่ได้ใช้ให้ใส่ 0)', 'err');
+    const a = Number(act.value), ret = Math.round((r.amount - a) * 100) / 100;
+    if (ret < 0) return setMsg($('pcMsg'), 'ใช้จริงเกินที่เบิกไม่ได้', 'err');
+    if (a > 0 && !receipts.length) return setMsg($('pcMsg'), 'ต้องแนบรูปใบเสร็จ/บิลอย่างน้อย 1 รูป', 'err');
+    if (ret > 0 && !rslip) return setMsg($('pcMsg'), 'มีเงินเหลือ ' + fm2(ret) + ' ฿ ต้องแนบสลิปโอนคืนบัญชี', 'err');
+    go.disabled = true; setMsg($('pcMsg'), '');
+    try {
+      await call({ action:'pcClear', id:r.id, actual:act.value, project:prj.value.trim(), receipts:receipts, returnSlip:rslip });
+      setMsg($('pcMsg'), 'ส่งเคลียร์แล้ว กรุณานำเอกสารตัวจริงมาส่งที่บัญชีอย่างช้าภายในวันรุ่งขึ้น', 'good'); await loadPc();
+    } catch (e) { setMsg($('pcMsg'), e.message, 'err'); }
+    finally { go.disabled = false; }
+  };
+  box.append(lab, act, prj, info, rcBox, slipWrap, go);
+  return box;
+}
+function renderPcMine(list) {
+  const box = $('pcMine'); box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="muted">ยังไม่มีใบเบิก</div>'; return; }
+  list.forEach(r => {
+    const d = document.createElement('div'); d.className = 'emp'; d.style.display = 'block';
+    const top = document.createElement('div'); top.className = 'row';
+    const left = pcHead(r, false);
+    const right = document.createElement('div'); right.className = 'badges';
+    addBadge(right, r.statusLabel, PC_BADGE[r.status]);
+    top.append(left, right); d.appendChild(top);
+    const more = document.createElement('div');
+    if (r.note && r.status !== 'closed') { const o = document.createElement('div'); o.className = 'muted'; o.style.color = '#b4232a'; o.textContent = (r.status === 'rejected' ? 'เหตุผลที่ไม่อนุมัติ: ' : '') + r.note; more.appendChild(o); }
+    if (r.hasSlip) more.appendChild(pcLink('🧾 ดูสลิปที่บัญชีโอนให้', r.id, 'slip'));
+    if (r.status === 'cleared' || r.status === 'closed') {
+      const o = document.createElement('div'); o.className = 'muted';
+      o.textContent = 'ใช้จริง ' + fm2(r.actual) + ' ฿' + (r.returnAmt ? ' · โอนคืน ' + fm2(r.returnAmt) + ' ฿' : '') + (r.clearProject ? ' · ' + r.clearProject : '');
+      more.appendChild(o);
+    }
+    if (r.status === 'cleared') {
+      const o = document.createElement('div'); o.className = 'muted'; o.style.color = '#b4232a';
+      o.textContent = 'ต้องนำเอกสารตัวจริง (ใบเสร็จ/บิล) มาส่งที่บัญชี อย่างช้าภายในวันรุ่งขึ้น ใบนี้จึงจะปิดยอดได้';
+      more.appendChild(o);
+    }
+    if (r.status === 'transferred') {
+      const late = r.transferDate < pcState.data.today;
+      const o = document.createElement('div'); o.className = 'muted'; o.style.color = '#b4232a';
+      o.textContent = late ? 'เลยกำหนดเคลียร์ (โอนเมื่อ ' + thDate(r.transferDate) + ') กรุณาเคลียร์ทันที' : 'ต้องเคลียร์ให้เสร็จภายในวันนี้';
+      more.appendChild(o);
+      const open = document.createElement('button'); open.className = 'primary'; open.textContent = 'เคลียร์ใบเสร็จ'; open.style.marginTop = '6px';
+      let form = null;
+      open.onclick = () => { if (form) { form.remove(); form = null; return; } form = pcClearForm(r); more.appendChild(form); };
+      more.appendChild(open);
+    }
+    if (r.status === 'closed' && r.closedAt) { const o = document.createElement('div'); o.className = 'muted'; o.textContent = 'ปิดยอดเมื่อ ' + r.closedAt + (r.closeNote ? ' · ' + r.closeNote : ''); more.appendChild(o); }
+    if (r.status === 'requested') {
+      const x = document.createElement('button'); x.className = 'link'; x.textContent = 'ยกเลิกใบเบิก';
+      x.onclick = async () => {
+        if (!confirm('ยกเลิกใบเบิกนี้?')) return;
+        try { await call({ action:'pcCancel', id:r.id }); await loadPc(); } catch (e) { setMsg($('pcMsg'), e.message, 'err'); }
+      };
+      more.appendChild(x);
+    }
+    d.appendChild(more); box.appendChild(d);
+  });
+}
+function renderPcQ(queue, balance) {
+  const box = $('pcQ'); box.innerHTML = '';
+  if (!queue.length) { box.innerHTML = '<div class="muted">ไม่มีใบเบิกรออนุมัติ</div>'; return; }
+  queue.forEach(r => {
+    const d = document.createElement('div'); d.className = 'emp'; d.style.display = 'block';
+    d.appendChild(pcHead(r, true));
+    if (r.amount > balance) { const w = document.createElement('div'); w.className = 'muted'; w.style.color = '#b4232a'; w.textContent = 'ยอดคงเหลือ ' + fm2(balance) + ' ฿ ไม่พอ ต้องเติมเงินก่อนจึงอนุมัติได้'; d.appendChild(w); }
+    let slip = null;
+    const pk = pcPicker('📎 แนบสลิปที่โอนให้พนักงาน (จำเป็น)', (img, row) => { slip = img; row.innerHTML = ''; row.appendChild(pcThumb(img)); }, false);
+    const ok = document.createElement('button'); ok.className = 'primary'; ok.textContent = '✔ อนุมัติ + โอนแล้ว'; ok.style.marginTop = '6px';
+    ok.onclick = async () => {
+      if (!slip) return setMsg($('pcMsg'), 'กรุณาแนบสลิปการโอนเงิน', 'err');
+      if (!confirm('ยืนยันโอน ' + fm2(r.amount) + ' ฿ ให้ ' + r.name + '?')) return;
+      ok.disabled = true; setMsg($('pcMsg'), '');
+      try { await call({ action:'pcTransfer', id:r.id, slip:slip }); setMsg($('pcMsg'), 'บันทึกโอนแล้ว (แจ้งพนักงานให้เคลียร์ใบเสร็จ)', 'good'); await loadPc(); }
+      catch (e) { setMsg($('pcMsg'), e.message, 'err'); }
+      finally { ok.disabled = false; }
+    };
+    const rj = document.createElement('button'); rj.className = 'link'; rj.textContent = '✖ ไม่อนุมัติ';
+    rj.onclick = async () => {
+      const why = prompt('เหตุผลที่ไม่อนุมัติ (จำเป็น) — ' + r.name + ' ' + fm2(r.amount) + ' ฿');
+      if (why === null) return;
+      if (!why.trim()) return setMsg($('pcMsg'), 'กรุณาระบุเหตุผลที่ไม่อนุมัติ', 'err');
+      try { await call({ action:'pcReject', id:r.id, note:why.trim() }); setMsg($('pcMsg'), 'บันทึกไม่อนุมัติแล้ว (แจ้งพนักงานแล้ว)', 'good'); await loadPc(); }
+      catch (e) { setMsg($('pcMsg'), e.message, 'err'); }
+    };
+    d.append(pk, ok, rj); box.appendChild(d);
+  });
+}
+function renderPcC(list) {
+  const box = $('pcC'); box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="muted">ไม่มีใบรอตรวจเคลียร์</div>'; return; }
+  list.forEach(r => {
+    const d = document.createElement('div'); d.className = 'emp'; d.style.display = 'block';
+    d.appendChild(pcHead(r, true));
+    const o = document.createElement('div'); o.className = 'muted';
+    o.textContent = 'ใช้จริง ' + fm2(r.actual) + ' ฿' + (r.returnAmt ? ' · พนักงานโอนคืน ' + fm2(r.returnAmt) + ' ฿ (ตรวจว่าเงินเข้าบัญชีแล้ว)' : ' · ไม่มีเงินคืน') + (r.clearProject ? ' · ' + r.clearProject : '');
+    d.appendChild(o);
+    const links = document.createElement('div');
+    for (let i = 0; i < r.receiptCount; i++) links.appendChild(pcLink('🧾 ใบเสร็จ ' + (i + 1), r.id, 'receipt', i));
+    if (r.hasReturnSlip) links.appendChild(pcLink('💸 สลิปโอนคืน', r.id, 'rslip'));
+    if (r.hasSlip) links.appendChild(pcLink('สลิปที่โอนให้', r.id, 'slip'));
+    d.appendChild(links);
+    const mk = text => { const l = document.createElement('label'); l.className = 'chk'; const c = document.createElement('input'); c.type = 'checkbox'; const t = document.createElement('span'); t.textContent = text; l.append(c, t); d.appendChild(l); return c; };
+    const cRet = r.returnAmt ? mk('ยืนยันว่าเงินโอนคืน ' + fm2(r.returnAmt) + ' ฿ เข้าบัญชีแล้วและยอดถูกต้อง') : null;
+    const cDoc = mk('ยืนยันว่าได้รับเอกสารตัวจริง (ใบเสร็จ/บิล) แล้ว');
+    const ok = document.createElement('button'); ok.className = 'primary'; ok.style.marginTop = '6px';
+    ok.textContent = '✔ ตรวจแล้ว ปิดยอด';
+    ok.onclick = async () => {
+      if (cRet && !cRet.checked) return setMsg($('pcMsg'), 'ต้องติ๊กยืนยันว่าเงินโอนคืนเข้าบัญชีแล้วและยอดถูกต้อง', 'err');
+      if (!cDoc.checked) return setMsg($('pcMsg'), 'ต้องติ๊กยืนยันว่าได้รับเอกสารตัวจริงแล้ว', 'err');
+      if (!confirm('ยืนยันปิดยอดใบของ ' + r.name + '?')) return;
+      ok.disabled = true; setMsg($('pcMsg'), '');
+      try { await call({ action:'pcClose', id:r.id, returnConfirmed:!!(cRet && cRet.checked), docsReceived:true }); setMsg($('pcMsg'), 'ปิดยอดแล้ว', 'good'); await loadPc(); }
+      catch (e) { setMsg($('pcMsg'), e.message, 'err'); }
+      finally { ok.disabled = false; }
+    };
+    const bk = document.createElement('button'); bk.className = 'link'; bk.textContent = '↩ ตีกลับให้แก้ไข';
+    bk.onclick = async () => {
+      const why = prompt('เหตุผลที่ตีกลับ (จำเป็น) เช่น ใบเสร็จไม่ชัด/ยอดไม่ตรง');
+      if (why === null) return;
+      if (!why.trim()) return setMsg($('pcMsg'), 'กรุณาระบุเหตุผลที่ตีกลับ', 'err');
+      try { await call({ action:'pcSendBack', id:r.id, note:why.trim() }); setMsg($('pcMsg'), 'ตีกลับแล้ว (แจ้งพนักงานแล้ว)', 'good'); await loadPc(); }
+      catch (e) { setMsg($('pcMsg'), e.message, 'err'); }
+    };
+    d.append(ok, bk); box.appendChild(d);
+  });
+}
+function renderPcO(r) {
+  const box = $('pcO'); box.innerHTML = '';
+  const s = r.summary;
+  const sm = document.createElement('div');
+  [['วันนี้จ่ายออก', fm2(s.transferTotal) + ' ฿ (' + s.transferCount + ' ใบ)'], ['ใช้จริง (เคลียร์แล้ว)', fm2(s.spentTotal) + ' ฿'],
+   ['ยังไม่เคลียร์วันนี้', s.pendingClearCount + ' ใบ · ' + fm2(s.pendingClearTotal) + ' ฿'], ['รับเงินคืนวันนี้', fm2(s.returnedTotal) + ' ฿'],
+   ['เติมเงินวันนี้', fm2(s.topupTotal) + ' ฿'], ['ยอดคงเหลือ', fm2(s.balance) + ' ฿']].forEach(x => {
+    const row = document.createElement('div'); row.className = 'row'; row.style.margin = '4px 0';
+    const a = document.createElement('span'); a.textContent = x[0]; const b = document.createElement('b'); b.textContent = x[1]; row.append(a, b); sm.appendChild(row);
+  });
+  box.appendChild(sm);
+  const need = document.createElement('div'); need.style.cssText = 'margin:10px 0;padding:10px;border-radius:10px;background:#f3f4f6';
+  const nb = document.createElement('b'); nb.textContent = s.topupNeeded > 0 ? 'ต้องเติมเงินสดย่อย ' + fm2(s.topupNeeded) + ' ฿ (ให้เต็ม ' + fm2(r.limit) + ' ฿)' : 'เงินสดย่อยเต็มวงเงินแล้ว';
+  need.appendChild(nb);
+  if (s.topupNeeded > 0) {
+    let slip = null;
+    const pk = pcPicker('📎 แนบสลิปโอนจากธนาคารเข้าเงินสดย่อย (จำเป็น)', (img, row) => { slip = img; row.innerHTML = ''; row.appendChild(pcThumb(img)); }, false);
+    const note = document.createElement('input'); note.type = 'text'; note.maxLength = 200; note.placeholder = 'หมายเหตุ (ถ้ามี)';
+    const go = document.createElement('button'); go.className = 'primary'; go.textContent = '✔ บันทึกเติมเงินแล้ว';
+    go.onclick = async () => {
+      if (!slip) return setMsg($('pcMsg'), 'กรุณาแนบสลิปโอนเงิน', 'err');
+      if (!confirm('ยืนยันบันทึกเติมเงิน ' + fm2(s.topupNeeded) + ' ฿?')) return;
+      go.disabled = true; setMsg($('pcMsg'), '');
+      try { const x = await call({ action:'pcTopup', slip:slip, note:note.value.trim() }); setMsg($('pcMsg'), 'บันทึกเติมเงิน ' + fm2(x.amount) + ' ฿ แล้ว', 'good'); await loadPc(); }
+      catch (e) { setMsg($('pcMsg'), e.message, 'err'); }
+      finally { go.disabled = false; }
+    };
+    need.append(pk, note, go);
+  }
+  box.appendChild(need);
+  const h1 = document.createElement('div'); h1.className = 'muted'; h1.style.marginTop = '8px'; h1.textContent = 'ใบที่โอนแล้วและยังไม่เคลียร์'; box.appendChild(h1);
+  if (!r.open.length) { const e = document.createElement('div'); e.className = 'muted'; e.textContent = 'ไม่มี'; box.appendChild(e); }
+  r.open.forEach(x => {
+    const d = document.createElement('div'); d.className = 'emp'; d.style.display = 'block';
+    d.appendChild(pcHead(x, true));
+    const o = document.createElement('div'); o.className = 'muted'; o.style.color = x.overdue ? '#b4232a' : ''; o.textContent = (x.overdue ? 'เลยกำหนด · ' : '') + 'โอนเมื่อ ' + thDate(x.transferDate);
+    d.appendChild(o); box.appendChild(d);
+  });
+  const h2 = document.createElement('div'); h2.className = 'muted'; h2.style.marginTop = '10px'; h2.textContent = 'เติมเงินล่าสุด'; box.appendChild(h2);
+  if (!r.topups.length) { const e = document.createElement('div'); e.className = 'muted'; e.textContent = 'ยังไม่มีรายการ'; box.appendChild(e); }
+  r.topups.forEach(t => {
+    const d = document.createElement('div'); d.className = 'emp';
+    const l = document.createElement('div'); l.textContent = t.date + ' ' + t.time.slice(0, 5) + ' · ' + fm2(t.amount) + ' ฿ · ' + t.by;
+    d.appendChild(l);
+    if (t.hasSlip) d.appendChild(pcLink('🧾 สลิป', t.id, 'topup'));
+    box.appendChild(d);
+  });
+  const h3 = document.createElement('div'); h3.className = 'muted'; h3.style.marginTop = '10px'; h3.textContent = 'ปิดยอดล่าสุด'; box.appendChild(h3);
+  if (!r.closedRecent.length) { const e = document.createElement('div'); e.className = 'muted'; e.textContent = 'ยังไม่มีรายการ'; box.appendChild(e); }
+  r.closedRecent.forEach(x => {
+    const d = document.createElement('div'); d.className = 'emp'; d.style.display = 'block';
+    d.appendChild(pcHead(x, true));
+    const o = document.createElement('div'); o.className = 'muted'; o.textContent = 'ใช้จริง ' + fm2(x.actual) + ' ฿' + (x.returnAmt ? ' · คืน ' + fm2(x.returnAmt) + ' ฿' : '') + ' · ปิดเมื่อ ' + x.closedAt;
+    d.appendChild(o); box.appendChild(d);
+  });
+}
+$('pcSubmit').onclick = async () => {
+  const body = { action:'pcSubmit', amount:$('pcAmount').value, purpose:$('pcPurpose').value.trim(), project:$('pcProject').value.trim() };
+  if (!(Number(body.amount) > 0)) return setMsg($('pcMsg'), 'กรุณากรอกจำนวนเงินที่ขอเบิก', 'err');
+  if (!body.purpose) return setMsg($('pcMsg'), 'กรุณาระบุว่าจะนำเงินไปใช้ทำอะไร', 'err');
+  $('pcSubmit').disabled = true; setMsg($('pcMsg'), '');
+  try {
+    const r = await call(body);
+    setMsg($('pcMsg'), 'ส่งใบเบิก ' + fm2(r.amount) + ' ฿ แล้ว รอบัญชีอนุมัติและโอน', 'good');
+    ['pcAmount','pcPurpose','pcProject'].forEach(id => { $(id).value = ''; });
+    await loadPc();
+  } catch (e) { setMsg($('pcMsg'), e.message, 'err'); }
+  finally { $('pcSubmit').disabled = false; }
 };
 
 /* ---------- สรุป OT รายเดือน ---------- */
