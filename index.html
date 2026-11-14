@@ -79,6 +79,7 @@
   .actions { display:flex; gap:8px; margin-top:8px; }
   .actions button { flex:1; padding:14px 8px; font-size:15px; }
   details > summary { cursor:pointer; padding:4px 0; }
+  .pf-t tr.pf-bd td { font-size:12px; color:#6b7280; padding-top:0; border-top:0; text-align:left; }
   .pctabs { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
   .pctabs button { padding:10px 4px; font-size:14px; border-radius:12px; line-height:1.25; }
   .pctabs button span { display:block; font-size:12px; font-weight:600; opacity:.85; }
@@ -653,7 +654,7 @@ async function api(payload) {
   const total = Math.round(performance.now() - t0);
   try {
     const j = JSON.parse(text);
-    perfLog.push({ a: payload.action, total: total, srv: j._srv ? j._srv.ms : null, bytes: text.length, at: Date.now() });
+    perfLog.push({ a: payload.action, total: total, srv: j._srv ? j._srv.ms : null, t: j._srv && j._srv.t, bytes: text.length, at: Date.now() });
     if (perfLog.length > 60) perfLog.shift();
     return j;
   }
@@ -1019,6 +1020,15 @@ $('tbBell').onclick = () => { if (push.checking && !push.on) return; if (push.on
 
 /* ---------- ตรวจความเร็ว (เมนู "ตรวจความเร็ว") ---------- */
 function median(a) { if (!a.length) return null; const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; }
+// แยกเวลาฝั่งเซิร์ฟเวอร์: ตรวจสิทธิ์ / บันทึกรูป / รอล็อก / งานในล็อก / ส่งแจ้งเตือน + เวลาอ่านชีตจริง (ที่ไม่ได้มาจากแคช)
+function perfBreak(t) {
+  if (!t) return '';
+  const N = { auth:'ตรวจสิทธิ์', photo:'บันทึกรูป', lock:'รอล็อก', work:'งานในล็อก', push:'ส่งแจ้งเตือน' };
+  const ph = t.ph ? Object.keys(N).filter(k => t.ph[k] != null).map(k => N[k] + ' ' + t.ph[k]) : [];
+  const rd = t.rd ? Object.keys(t.rd).sort((a, b) => t.rd[b] - t.rd[a]).map(k => k + ' ' + t.rd[k]) : [];
+  if (!ph.length && !rd.length) return '';
+  return (ph.length ? ph.join(' · ') : '') + (rd.length ? (ph.length ? '<br>' : '') + 'อ่านชีต: ' + rd.join(', ') : '');
+}
 function perfRender() {
   const box = $('perfBody'); if (!box) return;
   const rows = perfLog.filter(x => x.srv != null);
@@ -1038,6 +1048,8 @@ function perfRender() {
   h += '<table class="pf-t"><tr><th>คำสั่ง</th><th>รวม</th><th>เซิร์ฟเวอร์</th><th>เดินทาง</th><th>ขนาด</th></tr>';
   perfLog.slice().reverse().slice(0, 30).forEach(x => {
     h += '<tr><td>' + x.a + '</td><td>' + x.total + '</td><td>' + (x.srv == null ? '-' : x.srv) + '</td><td>' + (x.srv == null ? '-' : x.total - x.srv) + '</td><td>' + (x.bytes / 1024).toFixed(1) + 'k</td></tr>';
+    const bd = perfBreak(x.t);
+    if (bd) h += '<tr class="pf-bd"><td colspan="5">' + bd + '</td></tr>';
   });
   h += '</table><div class="muted" style="margin-top:8px">หน่วย ms · เดินทาง = เวลารวม − เซิร์ฟเวอร์ทำงาน</div>';
   box.innerHTML = h;
