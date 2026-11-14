@@ -79,6 +79,10 @@
   .actions { display:flex; gap:8px; margin-top:8px; }
   .actions button { flex:1; padding:14px 8px; font-size:15px; }
   details > summary { cursor:pointer; padding:4px 0; }
+  .pctabs { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
+  .pctabs button { padding:10px 4px; font-size:14px; border-radius:12px; line-height:1.25; }
+  .pctabs button span { display:block; font-size:12px; font-weight:600; opacity:.85; }
+  .pctabs button span:empty { display:none; }
   .cols > * { min-width:0; }
   #camVideo { max-height:70vh; object-fit:cover; }
 
@@ -452,14 +456,15 @@
       </div>
       <div class="muted" style="margin-top:6px">ขอเบิกล่วงหน้า → บัญชีโอนให้ → เคลียร์ใบเสร็จให้จบภายในวันเดียวกัน</div>
       <div class="muted" id="pcSum" style="margin-top:6px"></div>
+      <details id="pcFin" class="hidden" style="margin-top:8px"><summary><b>สรุปวันนี้ / เติมเงินสดย่อย</b></summary><div id="pcO" style="margin-top:6px"></div></details>
     </div>
     <div class="card">
-      <div class="row" style="gap:8px;flex-wrap:wrap">
+      <div class="pctabs">
         <button id="pcTabNew" class="primary">ขอเบิก</button>
-        <button id="pcTabMine" class="gray">ของฉัน <span id="pcMineCount"></span></button>
-        <button id="pcTabQ" class="gray hidden">รออนุมัติ <span id="pcQCount"></span></button>
-        <button id="pcTabC" class="gray hidden">ตรวจเคลียร์ <span id="pcCCount"></span></button>
-        <button id="pcTabO" class="gray hidden">ภาพรวม/เติมเงิน</button>
+        <button id="pcTabMine" class="gray">ของฉัน<span id="pcMineCount"></span></button>
+        <button id="pcTabQ" class="gray hidden">รอโอน<span id="pcQCount"></span></button>
+        <button id="pcTabB" class="gray hidden">รอแนบบิล<span id="pcBCount"></span></button>
+        <button id="pcTabC" class="gray hidden">รอส่งบิลตัวจริง<span id="pcCCount"></span></button>
       </div>
     </div>
     <div id="pcMsg" style="padding:0 4px"></div>
@@ -474,7 +479,7 @@
     <div class="card hidden" id="pcPaneMine"><div id="pcMine"></div></div>
     <div class="card hidden" id="pcPaneQ"><div id="pcQ"></div></div>
     <div class="card hidden" id="pcPaneC"><div id="pcC"></div></div>
-    <div class="card hidden" id="pcPaneO"><div id="pcO"></div></div>
+    <div class="card hidden" id="pcPaneB"><div id="pcB"></div></div>
   </div>
 
   <!-- จัดการพนักงาน (HR / ผู้ดูแลระบบ) -->
@@ -656,8 +661,8 @@ async function api(payload) {
 }
 
 // เรียกพร้อม token และจัดการเซสชันหมดอายุ
-async function call(payload) {
-  const r = await api({ ...payload, token: store.get('token') });
+async function call(payload, pre) {
+  const r = await (pre || api({ ...payload, token: store.get('token') }));
   if (!r.ok) {
     const e = new Error(r.error); e.code = r.code;
     if (e.code === 'AUTH') {
@@ -678,10 +683,32 @@ async function swr(payload, onData) {
   if (memCache[k]) { had = true; try { onData(memCache[k], true); } catch (e) {} }
   else { try { const c = JSON.parse(store.get('c_' + k) || 'null'); if (c) { had = true; memCache[k] = c; onData(c, true); } } catch (e) {} }
   try {
-    const r = await call(payload);
+    const r = await call(payload, takePre(payload));
     memCache[k] = r; try { store.set('c_' + k, JSON.stringify(r)); } catch (e) {}
     onData(r, false); return r;
   } catch (e) { if (!had) throw e; return memCache[k]; }
+}
+// กดแจ้งเตือน (?go=) → เริ่มโหลดรายการของหน้านั้นทันที พร้อมกับ status (ไม่ต้องรอ status เสร็จก่อน ประหยัดเวลาเดินทางหนึ่งรอบ)
+const GO_ACTION = { leave:'leaveOverview', ot:'otOverview', exp:'expOverview', pc:'pcOverview', pay:'payrollMine' };
+function prefetchGo() {
+  const a = state.go && GO_ACTION[state.go];
+  if (!a || !store.get('token') || (state.pre && state.pre.action === a)) return;
+  state.pre = { action: a, p: api({ action: a, token: store.get('token') }) };
+  state.pre.p.catch(() => {});
+}
+function takePre(payload) {
+  const pr = state.pre;
+  if (!pr || pr.action !== payload.action || Object.keys(payload).length !== 1) return null;
+  state.pre = null; return pr.p;
+}
+// หน้าที่เปิดอยู่: โหลดใหม่เมื่อมีแจ้งเตือนเข้าขณะเปิดแอป (เช่น หัวหน้าเปิดหน้ารออนุมัติค้างไว้)
+function refreshOpenView() {
+  const on = id => !$(id).classList.contains('hidden');
+  if (on('leaveView')) return loadLeave();
+  if (on('otView')) return loadOt();
+  if (on('expView')) return loadExp();
+  if (on('pcView')) return loadPc();
+  return null;
 }
 // โหลดข้อมูลหน้าอื่นรอไว้เบื้องหลังหลังเข้าหน้าหลัก ให้กดเมนูแล้วเห็นทันที
 function prefetchAll() {
@@ -716,6 +743,7 @@ async function init() {
   const savedCode = store.get('empCode');
   if (savedCode) $('empCode').value = savedCode;
   if (!store.get('token')) { show('loginView'); return; }
+  prefetchGo();
   try {
     await loadStatus();
   } catch (e) {
@@ -724,6 +752,20 @@ async function init() {
   }
 }
 
+// เลขแดงรายการรออนุมัติ (ใช้ทั้งตอนโหลดหน้าหลัก และตอนมีแจ้งเตือนเข้าขณะเปิดหน้าอื่นอยู่)
+function paintPending(r) {
+  const ap = Number(r.approvalsPending) || 0;
+  $('leaveBadge').textContent = ap + ' รออนุมัติ';
+  $('leaveBadge').classList.toggle('hidden', !ap);
+  const pc = r.pending || { leave: ap, ot: 0, pay: 0 };
+  state.pc = pc;
+  [['navDot', pc.leave], ['navDotOt', pc.ot], ['navDotPay', pc.pay], ['navDotExp', pc.exp || 0], ['navDotPc', pc.pc || 0]].forEach(x => {
+    const d = $(x[0]); d.textContent = x[1] > 9 ? '9+' : (x[1] || ''); d.classList.toggle('hidden', !x[1]);
+  });
+  const tot = (pc.leave || 0) + (pc.ot || 0) + (pc.pay || 0) + (pc.exp || 0) + (pc.pc || 0);
+  $('tbMenuDot').textContent = tot > 9 ? '9+' : (tot || ''); $('tbMenuDot').classList.toggle('hidden', !tot);
+}
+function refreshBadges() { call({ action:'status' }).then(paintPending).catch(() => {}); }
 async function loadStatus() {
   const dashP = api({ action:'dashboard', token:store.get('token') }).then(x => { if (!x.ok) { const e = new Error(x.error); e.code = x.code; throw e; } return x; });
   dashP.catch(() => {});
@@ -738,16 +780,7 @@ async function loadStatus() {
   $('tbSub').textContent = 'TMDSP_HR · ' + r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
   state.nextType = r.nextType;
   pushInit(r.push);
-  const ap = Number(r.approvalsPending) || 0;
-  $('leaveBadge').textContent = ap + ' รออนุมัติ';
-  $('leaveBadge').classList.toggle('hidden', !ap);
-  const pc = r.pending || { leave: ap, ot: 0, pay: 0 };
-  state.pc = pc;
-  [['navDot', pc.leave], ['navDotOt', pc.ot], ['navDotPay', pc.pay], ['navDotExp', pc.exp || 0], ['navDotPc', pc.pc || 0]].forEach(x => {
-    const d = $(x[0]); d.textContent = x[1] > 9 ? '9+' : (x[1] || ''); d.classList.toggle('hidden', !x[1]);
-  });
-  const tot = (pc.leave || 0) + (pc.ot || 0) + (pc.pay || 0) + (pc.exp || 0) + (pc.pc || 0);
-  $('tbMenuDot').textContent = tot > 9 ? '9+' : (tot || ''); $('tbMenuDot').classList.toggle('hidden', !tot);
+  paintPending(r);
   $('sbName').textContent = r.employee.name;
   $('sbSub').textContent = r.employee.code + (r.employee.role !== 'employee' ? ' · ' + ROLE_LABEL[r.employee.role] : '');
   renderToday(r.today);
@@ -799,7 +832,7 @@ function goFromUrl() {
 }
 goFromUrl();
 if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', ev => {
-  if (ev.data && ev.data.type === 'go' && ev.data.go) { state.go = ev.data.go; if (state.me) loadStatus().catch(() => {}); }
+  if (ev.data && ev.data.type === 'go' && ev.data.go) { state.go = ev.data.go; if (state.me) { prefetchGo(); loadStatus().catch(() => {}); } }
 });
 
 /* ---------- ตารางงานตามตำแหน่ง ---------- */
@@ -899,7 +932,8 @@ function pushSdk_() {
     push.sdk.onMessage(p => {
       const n = p.notification || {};
       toastMsg((n.title || '') + (n.body ? ' — ' + n.body : ''));
-      loadStatus().catch(() => {});
+      const rv = refreshOpenView();
+      if (rv) { rv.catch(() => {}); refreshBadges(); } else loadStatus().catch(() => {});
     });
     push.reg = await navigator.serviceWorker.register('sw.js?k=' + encodeURIComponent(c.apiKey) + '&p=' + encodeURIComponent(c.projectId) + '&s=' + encodeURIComponent(c.messagingSenderId) + '&a=' + encodeURIComponent(c.appId));
     await navigator.serviceWorker.ready;
@@ -2209,12 +2243,12 @@ $('expSubmit').onclick = async () => {
 const PC_BADGE = { requested:'', transferred:'', cleared:'', closed:'hr', rejected:'off', cancelled:'off' };
 const pcState = { data:null };
 function pcTab(name) {
-  [['New','pcPaneNew','pcTabNew'],['Mine','pcPaneMine','pcTabMine'],['Q','pcPaneQ','pcTabQ'],['C','pcPaneC','pcTabC'],['O','pcPaneO','pcTabO']].forEach(a => {
+  [['New','pcPaneNew','pcTabNew'],['Mine','pcPaneMine','pcTabMine'],['Q','pcPaneQ','pcTabQ'],['B','pcPaneB','pcTabB'],['C','pcPaneC','pcTabC']].forEach(a => {
     $(a[1]).classList.toggle('hidden', a[0] !== name);
     $(a[2]).className = a[0] === name ? 'primary' : 'gray';
   });
 }
-['New','Mine','Q','C','O'].forEach(n => { $('pcTab' + n).onclick = () => pcTab(n); });
+['New','Mine','Q','B','C'].forEach(n => { $('pcTab' + n).onclick = () => pcTab(n); });
 $('pcBack').onclick = () => { loadStatus().catch(() => show('mainView')); };
 $('pcBtn').onclick = async () => { show('pcView'); pcTab('New'); setMsg($('pcMsg'), ''); await loadPc(); };
 async function pcShowPhoto(id, kind, idx, btn) {
@@ -2266,15 +2300,18 @@ async function loadPc() {
   try {
     await swr({ action:'pcOverview' }, (r, cached) => {
       pcState.data = r;
-      $('pcSum').textContent = 'เงินสดย่อยคงเหลือ ' + fm2(r.balance) + ' / วงเงิน ' + fm2(r.limit) + ' ฿';
+      $('pcSum').textContent = 'เงินสดย่อยคงเหลือ ' + fm2(r.balance) + ' / วงเงิน ' + fm2(r.limit) + ' ฿' + (r.canManage && r.summary && r.summary.topupNeeded > 0 ? ' · ต้องเติม ' + fm2(r.summary.topupNeeded) + ' ฿' : '');
       $('pcBlock').textContent = r.blocked ? 'มีใบเบิกที่เลยกำหนดเคลียร์ ต้องเคลียร์ใบเก่าก่อนจึงจะขอเบิกใหม่ได้' : '';
-      $('pcMineCount').textContent = r.owe ? '(รอเคลียร์ ' + r.owe + ')' : '';
-      ['Q','C','O'].forEach(k => $('pcTab' + k).classList.toggle('hidden', !r.canManage));
+      $('pcMineCount').textContent = r.owe ? 'รอเคลียร์ ' + r.owe : '';
+      ['Q','B','C'].forEach(k => $('pcTab' + k).classList.toggle('hidden', !r.canManage));
+      $('pcFin').classList.toggle('hidden', !r.canManage);
       renderPcMine(r.mine);
       if (r.canManage) {
-        $('pcQCount').textContent = r.queue.length ? '(' + r.queue.length + ')' : '';
-        $('pcCCount').textContent = r.toClose.length ? '(' + r.toClose.length + ')' : '';
-        renderPcQ(r.queue, r.balance); renderPcC(r.toClose); renderPcO(r);
+        $('pcQCount').textContent = r.queue.length ? r.queue.length + ' ใบ' : '';
+        const od = r.open.filter(x => x.overdue).length;
+        $('pcBCount').textContent = r.open.length ? r.open.length + ' ใบ' + (od ? ' (เลย ' + od + ')' : '') : '';
+        $('pcCCount').textContent = r.toClose.length ? r.toClose.length + ' ใบ' : '';
+        renderPcQ(r.queue, r.balance); renderPcB(r.open); renderPcC(r.toClose); renderPcO(r);
       }
     });
   } catch (e) {
@@ -2435,6 +2472,28 @@ function renderPcC(list) {
     d.append(ok, bk); box.appendChild(d);
   });
 }
+// รอแนบบิล: โอนแล้ว พนักงานยังไม่ส่งเคลียร์ (ใบเสร็จ/ยอดใช้จริง/โอนคืน)
+function renderPcB(list) {
+  const box = $('pcB'); box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="muted">ไม่มีใบที่รอแนบบิล</div>'; return; }
+  const me = pcState.data && pcState.data.mine ? pcState.data.mine.map(x => x.id) : [];
+  list.forEach(x => {
+    const d = document.createElement('div'); d.className = 'emp'; d.style.display = 'block';
+    d.appendChild(pcHead(x, true));
+    const o = document.createElement('div'); o.className = 'muted'; if (x.overdue) o.style.color = '#b4232a';
+    o.textContent = (x.overdue ? 'เลยกำหนดเคลียร์ · ' : 'ต้องเคลียร์ภายในวันนี้ · ') + 'โอนเมื่อ ' + thDate(x.transferDate);
+    d.appendChild(o);
+    if (x.note) { const n = document.createElement('div'); n.className = 'muted'; n.style.color = '#b4232a'; n.textContent = x.note; d.appendChild(n); }
+    if (x.hasSlip) d.appendChild(pcLink('🧾 สลิปที่โอนให้', x.id, 'slip'));
+    if (me.indexOf(x.id) >= 0) {
+      const open = document.createElement('button'); open.className = 'primary'; open.textContent = 'เคลียร์ใบเสร็จ (ใบของฉัน)'; open.style.marginTop = '6px';
+      let form = null;
+      open.onclick = () => { if (form) { form.remove(); form = null; return; } form = pcClearForm(x); d.appendChild(form); };
+      d.appendChild(open);
+    }
+    box.appendChild(d);
+  });
+}
 function renderPcO(r) {
   const box = $('pcO'); box.innerHTML = '';
   const s = r.summary;
@@ -2465,14 +2524,6 @@ function renderPcO(r) {
     need.append(pk, note, go);
   }
   box.appendChild(need);
-  const h1 = document.createElement('div'); h1.className = 'muted'; h1.style.marginTop = '8px'; h1.textContent = 'ใบที่โอนแล้วและยังไม่เคลียร์'; box.appendChild(h1);
-  if (!r.open.length) { const e = document.createElement('div'); e.className = 'muted'; e.textContent = 'ไม่มี'; box.appendChild(e); }
-  r.open.forEach(x => {
-    const d = document.createElement('div'); d.className = 'emp'; d.style.display = 'block';
-    d.appendChild(pcHead(x, true));
-    const o = document.createElement('div'); o.className = 'muted'; o.style.color = x.overdue ? '#b4232a' : ''; o.textContent = (x.overdue ? 'เลยกำหนด · ' : '') + 'โอนเมื่อ ' + thDate(x.transferDate);
-    d.appendChild(o); box.appendChild(d);
-  });
   const h2 = document.createElement('div'); h2.className = 'muted'; h2.style.marginTop = '10px'; h2.textContent = 'เติมเงินล่าสุด'; box.appendChild(h2);
   if (!r.topups.length) { const e = document.createElement('div'); e.className = 'muted'; e.textContent = 'ยังไม่มีรายการ'; box.appendChild(e); }
   r.topups.forEach(t => {
